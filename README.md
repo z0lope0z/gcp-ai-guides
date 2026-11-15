@@ -4,6 +4,10 @@ Interactive, self-contained HTML study guides for Google Cloud AI and machine
 learning certifications, published at <https://gcp-ai.emano.ph>. Open
 `index.html` in a browser; there's no build step.
 
+To study offline, click **Make available offline** on the home page (saves every
+guide in that browser; `sw.js` serves them when there's no connection), or
+download the repository as a .zip and open `index.html`.
+
 ## Professional Machine Learning Engineer (PMLE)
 
 Twelve topic guides covering the exam guide dated June 1, 2026. Each has a
