@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML Fundamentals: Data, Feature Engineering and Class Imbalance</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Fundamentals · 2.1, 3.1</span></div>
+<h1>ML fundamentals 1: data, feature engineering and class imbalance</h1>
+<p class="subtitle">The data half of ML fundamentals: framing a problem, splitting data without leaking the answer, every common feature-engineering technique and when to use it, missing values, feature selection, and a deep treatment of class imbalance (weights, resampling, SMOTE, thresholds, probability correction). Maps each technique to BigQuery ML, TensorFlow Transform and Dataflow.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#framing">Framing the problem before touching data</a></li>
+    <li><a href="#eda">Data quality and exploration</a></li>
+    <li><a href="#splits">Splitting data correctly</a></li>
+    <li><a href="#leakage">Data leakage</a></li>
+    <li><a href="#numeric">Feature engineering: numeric features</a></li>
+    <li><a href="#categorical">Feature engineering: categorical features</a></li>
+    <li><a href="#otherfeatures">Text, image, time and geospatial features</a></li>
+    <li><a href="#missing">Missing values</a></li>
+    <li><a href="#selection">Feature selection</a></li>
+    <li><a href="#imbalance">Class imbalance in depth</a></li>
+    <li><a href="#imbcalc">Class imbalance calculator</a></li>
+    <li><a href="#gcptools">Doing feature engineering on Google Cloud</a></li>
+    <li><a href="#chooser">"Which technique?" chooser</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (22 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="framing">1. Framing the problem before touching data</h2>
+<p>Many exam questions are lost before any modelling: the problem was framed wrongly. Before choosing a model, answer these:</p>
+<table>
+  <tr><th>Question</th><th>Why it matters</th></tr>
+  <tr><td>Is ML needed at all?</td><td>If a rule or a SQL query solves it reliably, that's cheaper and explainable. ML is for patterns too complex to write by hand.</td></tr>
+  <tr><td>What exactly is predicted, and when?</td><td>"Will this customer cancel in the next 30 days, predicted on the 1st of each month" defines the label, the prediction time and which data is allowed.</td></tr>
+  <tr><td>What kind of problem is it?</td><td>Binary or multi-class classification, multi-label, regression, forecasting, ranking/recommendation, clustering, anomaly detection, generation.</td></tr>
+  <tr><td>What's the baseline?</td><td>A majority-class guess, last value, a simple rule, or a linear model. Every model must beat it to be worth shipping.</td></tr>
+  <tr><td>What's the business metric, and what does each error cost?</td><td>Decides the evaluation metric and the threshold (see <a href="ml-model-evaluation.html#threshold">Fundamentals 2</a>).</td></tr>
+  <tr><td>Do labels exist, and how quickly do they arrive?</td><td>No labels: unsupervised, weak supervision, or a labelling project. Late labels: retraining and monitoring must account for the delay.</td></tr>
+</table>
+<div class="key">Write the prediction as a sentence with a time: "At time <em>t</em>, using only data available before <em>t</em>, predict <em>y</em> over window <em>w</em>." Most leakage bugs are violations of that sentence.</div>
+
+<!-- ============================================================ -->
+<h2 id="eda">2. Data quality and exploration</h2>
+<p>Exploratory data analysis (EDA) finds problems that would otherwise surface as a mysteriously bad or suspiciously good model.</p>
+<table>
+  <tr><th>Check</th><th>What to look for</th><th>On Google Cloud</th></tr>
+  <tr><td>Schema and types</td><td>Numbers stored as strings, mixed date formats, IDs read as numbers</td><td>BigQuery schema, <code>INFORMATION_SCHEMA</code>, TensorFlow Data Validation (TFDV) schema</td></tr>
+  <tr><td>Missing values</td><td>Rates per column, and whether missingness is itself informative</td><td><code>COUNTIF(col IS NULL)</code>, data profile scans (Dataplex)</td></tr>
+  <tr><td>Distributions and outliers</td><td>Heavy tails, impossible values (negative ages), sentinel values like -999</td><td><code>APPROX_QUANTILES</code>, TFDV statistics, notebook histograms</td></tr>
+  <tr><td>Label quality and balance</td><td>Class ratios, noisy or inconsistent labels, label definition drift over time</td><td><code>GROUP BY label</code>, label audits</td></tr>
+  <tr><td>Duplicates</td><td>Exact or near duplicates across train and test inflate scores</td><td>Hash rows; dedupe before splitting</td></tr>
+  <tr><td>Correlations</td><td>Features nearly identical to the label (leakage suspects), or to each other (redundancy)</td><td><code>CORR()</code>, feature importance</td></tr>
+  <tr><td>Time coverage</td><td>Gaps, seasonality, sudden changes in how data was recorded</td><td>Counts per day; plot over time</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="splits">3. Splitting data correctly</h2>
+<table>
+  <tr><th>Split type</th><th>When</th><th>Why</th></tr>
+  <tr><td>Random train / validation / test (for example 80/10/10)</td><td>Independent rows, no time dependence</td><td>Simple and unbiased when rows really are independent</td></tr>
+  <tr><td><strong>Stratified</strong></td><td>Classification, especially imbalanced</td><td>Keeps the class ratio equal in every split, so the rare class appears in validation and test</td></tr>
+  <tr><td><strong>Time-based</strong> (train on the past, test on the future)</td><td>Forecasting, or any data where the world changes over time (fraud, churn, prices)</td><td>A random split lets the model learn from the future it's tested on</td></tr>
+  <tr><td><strong>Group-based</strong></td><td>Several rows per user, patient, device or session</td><td>All rows of one group stay in one split, or the model memorizes the entity instead of learning the pattern</td></tr>
+</table>
+<ul>
+  <li><strong>Validation</strong> is for choosing models, features, hyperparameters and thresholds. <strong>Test</strong> is touched once, at the end. Tuning on test makes its score optimistic.</li>
+  <li>Fit preprocessing (means, vocabularies, scalers) <strong>on training data only</strong>, then apply it to validation and test.</li>
+  <li>BigQuery ML: <code>data_split_method</code> = <code>AUTO_SPLIT</code>, <code>RANDOM</code>, <code>CUSTOM</code> (your boolean column), <code>SEQ</code> (by an ordering column, for time) or <code>NO_SPLIT</code>.</li>
+  <li>Reproducible splits in SQL: <code>MOD(ABS(FARM_FINGERPRINT(CAST(user_id AS STRING))), 10) &lt; 8</code> puts each user consistently in the training set (a group-based, repeatable split).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="leakage">4. Data leakage</h2>
+<p><strong>Leakage</strong> means the model sees information during training that it won't have at prediction time. It produces excellent offline metrics and poor production results, and it's one of the most tested fundamentals.</p>
+<table>
+  <tr><th>Type</th><th>Example</th><th>Prevent it</th></tr>
+  <tr><td><strong>Target leakage</strong></td><td>Predicting churn with "cancellation_reason" or "refund_issued", recorded only after the customer leaves</td><td>For each feature, ask "is this known at prediction time?"; build features as of the prediction timestamp</td></tr>
+  <tr><td><strong>Temporal leakage</strong></td><td>Random split of time-series data; a 30-day rolling average that includes future days</td><td>Time-based splits; windows that end before the prediction time; point-in-time feature lookups</td></tr>
+  <tr><td><strong>Train-test contamination</strong></td><td>Scaling or imputing with statistics computed on all data; duplicates in both splits</td><td>Fit transforms on training data only; deduplicate before splitting</td></tr>
+  <tr><td><strong>Group leakage</strong></td><td>The same patient's scans in training and test</td><td>Group-based splits</td></tr>
+  <tr><td><strong>Target encoding leakage</strong></td><td>Replacing a category with the average label computed including the row itself</td><td>Out-of-fold target encoding with smoothing</td></tr>
+  <tr><td>Proxy leakage</td><td>An "account_closed_date" column that's null for active customers</td><td>Inspect features with suspiciously high importance</td></tr>
+</table>
+<div class="warn">A sudden jump to near-perfect validation scores after adding one feature almost always means leakage, not a breakthrough. Check feature attributions: a single dominant feature is the usual tell.</div>
+<p>On Google Cloud, <strong>point-in-time lookups</strong> in the Feature Store (and <code>ML.FEATURES_AT_TIME</code> / <code>ML.ENTITY_FEATURES_AT_TIME</code> in BigQuery) return each feature's value as it was at the label's timestamp, which prevents temporal leakage when building training sets.</p>
+
+<!-- ============================================================ -->
+<h2 id="numeric">5. Feature engineering: numeric features</h2>
+<table>
+  <tr><th>Technique</th><th>What it does</th><th>Use when</th><th>BigQuery ML</th></tr>
+  <tr><td><strong>Standardization</strong> (z-score)</td><td>(x − mean) / std</td><td>Linear models, neural networks, k-means, anything with gradients or distances</td><td><code>ML.STANDARD_SCALER</code></td></tr>
+  <tr><td><strong>Min-max scaling</strong></td><td>Rescale to [0, 1]</td><td>Bounded inputs, neural networks; sensitive to outliers</td><td><code>ML.MIN_MAX_SCALER</code></td></tr>
+  <tr><td>Robust scaling</td><td>Uses median and interquartile range</td><td>Outliers present</td><td><code>ML.ROBUST_SCALER</code></td></tr>
+  <tr><td><strong>Log transform</strong></td><td>log(x + 1)</td><td>Heavy right tails (income, counts, prices)</td><td><code>LOG(x + 1)</code> in TRANSFORM</td></tr>
+  <tr><td><strong>Bucketizing</strong> (binning)</td><td>Turns a number into ranges</td><td>Non-linear effects in linear models (age bands); quantile buckets give equal-sized bins</td><td><code>ML.BUCKETIZE</code>, <code>ML.QUANTILE_BUCKETIZE</code></td></tr>
+  <tr><td>Clipping</td><td>Caps values at percentiles</td><td>Extreme outliers that would dominate training</td><td><code>LEAST/GREATEST</code></td></tr>
+  <tr><td>Polynomial features</td><td>x², x·y</td><td>Curved relationships in linear models</td><td><code>ML.POLYNOMIAL_EXPAND</code></td></tr>
+  <tr><td>Ratios and differences</td><td>spend per visit, days since last order</td><td>Domain knowledge; often the strongest features</td><td>SQL expressions</td></tr>
+</table>
+<div class="key">Tree-based models (boosted trees, random forests) don't need scaling or log transforms: they split on thresholds. Linear models, neural networks and distance-based methods do.</div>
+
+<!-- ============================================================ -->
+<h2 id="categorical">6. Feature engineering: categorical features</h2>
+<table>
+  <tr><th>Technique</th><th>How</th><th>Use when</th><th>Watch out</th></tr>
+  <tr><td><strong>One-hot encoding</strong></td><td>One binary column per value</td><td>Few distinct values (tens)</td><td>Explodes with high cardinality; unseen values at serving need a default</td></tr>
+  <tr><td>Label / ordinal encoding</td><td>Integer per value</td><td>Truly ordered values (small &lt; medium &lt; large), or tree models</td><td>Implies an order linear models will misuse</td></tr>
+  <tr><td><strong>Feature hashing</strong> (hash buckets)</td><td>hash(value) mod N</td><td>Very high or unbounded cardinality (URLs, IDs); new values appear constantly</td><td>Collisions merge unrelated values; pick N to keep them rare</td></tr>
+  <tr><td><strong>Embeddings</strong></td><td>Learned dense vectors per value</td><td>High cardinality in neural networks (user IDs, products, words)</td><td>Need enough data per value; cold start for new values</td></tr>
+  <tr><td>Target (mean) encoding</td><td>Replace a value with the mean label for it</td><td>High-cardinality features in tree models</td><td>Leakage unless out-of-fold and smoothed</td></tr>
+  <tr><td>Frequency encoding</td><td>Replace with how often the value occurs</td><td>Popularity matters</td><td>Different values can share a frequency</td></tr>
+  <tr><td>Grouping rare values</td><td>Map values below a count to "OTHER"</td><td>Long tails; keeps vocabularies stable</td><td>Choose the threshold on training data</td></tr>
+</table>
+<ul>
+  <li><strong>Feature crosses</strong> combine features (country × device) so linear models can learn interactions: <code>ML.FEATURE_CROSS(STRUCT(country, device))</code>. Neural networks and trees learn interactions themselves.</li>
+  <li><strong>Vocabulary</strong>: built from training data; out-of-vocabulary (OOV) values at serving must map to a reserved bucket.</li>
+</ul>
+<div class="mn"><strong>"Few: one-hot. Many: hash or embed. Ordered: ordinal. Interacting: cross."</strong></div>
+
+<!-- ============================================================ -->
+<h2 id="otherfeatures">7. Text, image, time and geospatial features</h2>
+<table>
+  <tr><th>Data</th><th>Classic features</th><th>Modern features</th></tr>
+  <tr><td>Text</td><td>Bag of words, n-grams, TF-IDF (term frequency–inverse document frequency); <code>ML.NGRAMS</code>, <code>ML.TF_IDF</code> in BigQuery ML</td><td>Embeddings from a pretrained model (Gemini embeddings via <code>ML.GENERATE_EMBEDDING</code>), or fine-tuning a transformer</td></tr>
+  <tr><td>Images</td><td>Resizing, normalization, colour histograms</td><td>Transfer learning from a pretrained CNN or vision transformer; augmentation (flip, crop, rotate) to add variety</td></tr>
+  <tr><td>Time / dates</td><td>Hour, day of week, month, holiday flag; <strong>cyclical encoding</strong> with sine and cosine so 23:00 is close to 00:00</td><td>Lags (value 1, 7, 28 days ago), rolling means and counts over windows that end before the prediction time</td></tr>
+  <tr><td>Geospatial</td><td>Latitude and longitude buckets, crosses of lat × long, distance to points of interest</td><td>Geohash or S2 cells, BigQuery GIS functions (<code>ST_DISTANCE</code>)</td></tr>
+  <tr><td>Sequences / events</td><td>Counts per window, time since last event</td><td>Sequence models, session embeddings</td></tr>
+</table>
+<div class="warn">Rolling and lag features must be computed with windows that end <em>before</em> each prediction time. A window centred on the event, or computed over the full table, leaks the future.</div>
+
+<!-- ============================================================ -->
+<h2 id="missing">8. Missing values</h2>
+<table>
+  <tr><th>Approach</th><th>When</th></tr>
+  <tr><td>Drop rows</td><td>Few rows affected, missing at random, plenty of data</td></tr>
+  <tr><td>Drop the column</td><td>Mostly missing and not informative</td></tr>
+  <tr><td>Impute mean or median (numeric), most frequent (categorical)</td><td>Simple baseline; median for skewed data. <code>ML.IMPUTER</code> in BigQuery ML</td></tr>
+  <tr><td>Add a "was missing" indicator</td><td>Missingness carries signal (no phone number on file)</td></tr>
+  <tr><td>Model-based imputation</td><td>Strong relationships between features; more effort</td></tr>
+  <tr><td>Let the model handle it</td><td>Gradient-boosted trees (XGBoost, BigQuery ML boosted trees) learn a default direction for missing values</td></tr>
+</table>
+<div class="key">Whatever you choose, apply the <strong>same imputation values at serving</strong>, computed from training data. BigQuery ML's <code>TRANSFORM</code>, TensorFlow Transform and in-model preprocessing layers do this automatically.</div>
+
+<!-- ============================================================ -->
+<h2 id="selection">9. Feature selection</h2>
+<table>
+  <tr><th>Family</th><th>Examples</th><th>Trade-off</th></tr>
+  <tr><td>Filter methods</td><td>Correlation with the label, mutual information, chi-squared, variance threshold</td><td>Fast, model-independent; miss interactions</td></tr>
+  <tr><td>Wrapper methods</td><td>Forward selection, backward elimination, recursive feature elimination</td><td>Model-aware; expensive</td></tr>
+  <tr><td>Embedded methods</td><td><strong>L1 (lasso) regularization</strong> drives useless weights to zero; tree feature importance</td><td>Selection happens during training</td></tr>
+  <tr><td>Attribution-based</td><td>Shapley values, permutation importance, <code>ML.FEATURE_IMPORTANCE</code>, <code>ML.GLOBAL_EXPLAIN</code></td><td>Explains a trained model; good for pruning</td></tr>
+  <tr><td>Dimensionality reduction</td><td>PCA (<code>model_type='PCA'</code>), autoencoders</td><td>Compresses correlated features; components lose direct meaning</td></tr>
+</table>
+<p>Fewer, better features mean faster training and serving, less overfitting, simpler monitoring and fewer things that can drift or break.</p>
+
+<!-- ============================================================ -->
+<h2 id="imbalance">10. Class imbalance in depth</h2>
+<p>Imbalance means one class is much rarer than the other (fraud at 0.1%, defects at 0.5%). It causes three problems: <strong>misleading metrics</strong> (accuracy looks great), <strong>a model that ignores the rare class</strong> (the loss is dominated by the majority), and <strong>too few positive examples</strong> to learn from.</p>
+<h3>1. Measure correctly first</h3>
+<ul>
+  <li>Never judge on accuracy. Use precision, recall, F1, <strong>PR AUC</strong>, and recall at a fixed precision (or the reverse). See <a href="ml-model-evaluation.html#rocpr">ROC vs PR</a>.</li>
+  <li>Use <strong>stratified</strong> splits so the rare class appears in every split; keep validation and test at the <strong>true</strong> class ratio.</li>
+</ul>
+<h3>2. Change how the model learns</h3>
+<table>
+  <tr><th>Technique</th><th>How</th><th>Pros</th><th>Cons</th></tr>
+  <tr><td><strong>Class weights</strong></td><td>Multiply the loss of rare-class errors (for example weight = N / (2 × N<sub>class</sub>))</td><td>No data thrown away; one parameter. <code>auto_class_weights=TRUE</code> in BigQuery ML, <code>class_weight</code> in Keras, <code>scale_pos_weight</code> in XGBoost</td><td>Probabilities become miscalibrated (too high for the rare class)</td></tr>
+  <tr><td><strong>Downsampling</strong> the majority (undersampling)</td><td>Keep a fraction of majority rows</td><td>Faster training; often fine with huge data</td><td>Discards information; probabilities need correction</td></tr>
+  <tr><td>Downsample + <strong>upweight</strong></td><td>Downsample the majority by factor k, then weight those rows by k</td><td>Google's recommended pattern: fast training with calibrated probabilities</td><td>One more parameter</td></tr>
+  <tr><td><strong>Oversampling</strong> the minority</td><td>Duplicate rare rows</td><td>Simple</td><td>Overfits the duplicated rows; oversample after splitting, never before</td></tr>
+  <tr><td><strong>SMOTE</strong> (synthetic minority oversampling)</td><td>Creates synthetic rare examples between neighbours</td><td>More variety than duplication</td><td>Can create unrealistic points; tabular numeric data only; apply only to training</td></tr>
+  <tr><td>Focal loss</td><td>Down-weights easy, well-classified examples</td><td>Strong for dense detection and extreme imbalance in deep learning</td><td>Extra hyperparameter</td></tr>
+  <tr><td>Anomaly-detection framing</td><td>Model "normal" and flag deviations (autoencoder, k-means distance, isolation forest)</td><td>When positives are extremely rare or unlabelled</td><td>Harder to target a specific kind of positive</td></tr>
+  <tr><td>Collect or label more positives</td><td>Active learning, labelling campaigns, data from related sources</td><td>Often the biggest gain</td><td>Time and cost</td></tr>
+</table>
+<h3>3. Choose the operating point</h3>
+<ul>
+  <li><strong>Move the threshold</strong> instead of (or as well as) resampling: lower it to catch more positives, raise it for fewer false alarms. Pick it on validation data from the cost of each error type.</li>
+  <li>If you resampled or weighted, <strong>recalibrate</strong> probabilities before using them as probabilities (for example in expected-cost decisions), or use the downsample-and-upweight pattern.</li>
+</ul>
+<div class="warn">Resample <strong>only the training set</strong>, after splitting. Oversampling before the split copies the same rare rows into test, and evaluating on a rebalanced test set reports precision you'll never see in production.</div>
+
+<!-- ============================================================ -->
+<h2 id="imbcalc">11. Class imbalance calculator</h2>
+<p>Enter your class counts and a downsampling plan. The calculator gives balanced class weights, the training ratio after downsampling, the weight that restores calibration, and how to convert a probability from the downsampled model back to the real-world probability.</p>
+<div class="card">
+  <div class="tool">
+    <label>Positive (rare class) rows<br><input id="iP" type="number" min="1" value="2000"></label>
+    <label>Negative (majority class) rows<br><input id="iN" type="number" min="1" value="998000"></label>
+    <label>Keep this fraction of negatives when downsampling (0–1)<br><input id="iK" type="number" min="0.0001" max="1" step="0.001" value="0.02"></label>
+    <label>Model output probability on the downsampled data<br><input id="iS" type="number" min="0" max="1" step="0.01" value="0.6"></label>
+  </div>
+  <div class="outbox" id="iOut"></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="gcptools">12. Doing feature engineering on Google Cloud</h2>
+<table>
+  <tr><th>Tool</th><th>Feature engineering role</th></tr>
+  <tr><td>BigQuery ML <code>TRANSFORM</code></td><td>Scalers, bucketizers, imputers, crosses, n-grams stored with the model and applied at prediction automatically</td></tr>
+  <tr><td>TensorFlow Transform (on Dataflow)</td><td>Full-pass statistics (vocabularies, means) computed at scale and exported into the serving graph</td></tr>
+  <tr><td>Keras preprocessing layers, scikit-learn <code>Pipeline</code> / <code>ColumnTransformer</code></td><td>Preprocessing saved inside the model artifact</td></tr>
+  <tr><td>Dataflow / Spark</td><td>Large-scale joins, windows and streaming features</td></tr>
+  <tr><td>Feature Store on Agent Platform</td><td>Shared, versioned features with point-in-time training data and online serving</td></tr>
+  <tr><td>Data preparation in BigQuery, Gemini in BigQuery</td><td>Low-code cleaning suggestions</td></tr>
+</table>
+<div class="key">The exam's theme: <strong>one implementation of preprocessing, used for training and serving</strong>. Different code paths are the main cause of training-serving skew.</div>
+
+<!-- ============================================================ -->
+<h2 id="chooser">13. "Which technique?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">14. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">15. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. leakage, one-hot, hashing, SMOTE, class weight, lag…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">16. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">17. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Ask of every feature: is it known at prediction time?</strong> If not, it leaks.</li>
+<li><strong>Random splits leak the future</strong> for time-dependent data; split by time.</li>
+<li><strong>Keep each user, patient or device in one split.</strong></li>
+<li><strong>Fit preprocessing on training data only</strong> and reuse the same statistics at serving.</li>
+<li><strong>Resample only the training set</strong>; validate and test at the real class ratio.</li>
+<li><strong>Accuracy hides imbalance</strong>; use precision, recall, PR AUC.</li>
+<li><strong>Class weights and resampling distort probabilities</strong>: recalibrate, or downsample and upweight.</li>
+<li><strong>Trees don't need scaling</strong>; linear models, neural networks and k-means do.</li>
+<li><strong>One-hot for few values; hashing or embeddings for many</strong>; plan for unseen values.</li>
+<li><strong>Linear models need feature crosses</strong> for interactions.</li>
+<li><strong>Target encoding must be out-of-fold</strong>, or it leaks the label.</li>
+<li><strong>A sudden near-perfect score means leakage</strong> until proven otherwise.</li>
+<li><strong>Windows must end before the prediction time</strong> for lag and rolling features.</li>
+<li><strong>Often the best imbalance fix is more positive examples.</strong></li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">18. Practice quiz (22 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="pmle-exam-overview.html">← Exam overview and strategy</a><a href="ml-model-evaluation.html">Next: ML fundamentals 2: bias-variance and metrics →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Category with 5 values, linear model", "One-hot encoding", "Few values; each gets its own weight.", "Hashing (unnecessary collisions)"],
+  ["Millions of URLs or IDs, new ones every day", "Feature hashing or learned embeddings", "Bounded size; unseen values still map somewhere.", "One-hot with a giant, ever-growing vocabulary"],
+  ["Size: small / medium / large", "Ordinal encoding", "The order is real.", "One-hot (loses the order) or hashing"],
+  ["Country and device interact in a linear model", "Feature cross (ML.FEATURE_CROSS)", "Linear models can't learn interactions alone.", "Scaling both features"],
+  ["Income with a long right tail", "Log transform (or quantile buckets)", "Compresses the tail so it doesn't dominate.", "Min-max scaling alone"],
+  ["Neural network with features on different scales", "Standardization (z-score)", "Gradient descent converges faster and more stably.", "Leaving raw values"],
+  ["Boosted trees with skewed numeric features", "Usually nothing", "Trees split on thresholds; scaling doesn't change them.", "Spending time on scaling"],
+  ["Hour of day as a feature", "Sine and cosine (cyclical) encoding", "23:00 and 00:00 become neighbours.", "Raw 0–23 integers"],
+  ["Free-text product descriptions", "Pretrained text embeddings (or TF-IDF for a baseline)", "Captures meaning with little labelled data.", "One-hot of the whole text"],
+  ["Missingness itself is meaningful", "Impute plus a 'was missing' indicator", "Keeps the signal and a usable value.", "Dropping the rows"],
+  ["0.1% positives, plenty of data, need calibrated scores", "Downsample negatives and upweight them", "Fast training without biased probabilities.", "Oversampling before the split"],
+  ["Imbalanced data, simplest fix in BigQuery ML", "auto_class_weights=TRUE", "Reweights the loss without changing the data.", "Duplicating positives in the table"],
+  ["Metric must not be fooled by imbalance", "PR AUC, recall at fixed precision", "Focus on the rare class.", "Accuracy"],
+  ["Several rows per patient", "Group-based split", "No patient appears in both training and test.", "Random row split"],
+  ["Predicting next month's sales", "Time-based split", "Train on the past, test on the future.", "Random split"],
+  ["High-cardinality category in a tree model", "Out-of-fold target encoding with smoothing", "Compact and informative without leakage.", "Target encoding using all rows including the row itself"],
+];
+
+const scenarios = [
+  { t: "Validation AUC jumps from 0.78 to 0.99 after adding one feature", diag: "Check that feature's attribution and when it's recorded.", cause: "Target leakage: the feature is only known after the outcome.", fix: "Remove it, or rebuild it as of the prediction time; re-evaluate on a time-based split." },
+  { t: "Churn model great offline, poor in production", diag: "Review the split method and whether features use future data.", cause: "Random split over time-dependent data, or rolling features that include future days.", fix: "Time-based split; windows that end before the prediction date; point-in-time feature lookups." },
+  { t: "Medical image model scores 97% in test, 70% at a new hospital", diag: "Check whether the same patients appear in train and test, and where test images came from.", cause: "Group leakage and a test set not representative of new sites.", fix: "Split by patient; hold out whole sites; augment and collect more diverse data." },
+  { t: "Fraud model predicts 'not fraud' for everything", diag: "Look at class balance and the training loss.", cause: "Extreme imbalance: the loss is dominated by the majority class.", fix: "Class weights or downsample-and-upweight; evaluate with PR AUC; tune the threshold." },
+  { t: "After oversampling, test precision is 0.8 but production precision is 0.1", diag: "Check whether test data was resampled.", cause: "Test set was rebalanced, or oversampling happened before the split.", fix: "Resample only training data; keep test at the true class ratio." },
+  { t: "Probabilities from a class-weighted model are too high", diag: "Compare predicted rates with observed rates (calibration curve).", cause: "Class weights shift probabilities toward the rare class.", fix: "Recalibrate (Platt or isotonic), or use downsample-and-upweight, or use scores only for ranking." },
+  { t: "Model crashes at serving on a new category value", diag: "Find values not in the training vocabulary.", cause: "No out-of-vocabulary handling.", fix: "Reserve OOV buckets, use hashing, or group rare values into OTHER." },
+  { t: "Linear model ignores a strong country-by-device effect", diag: "Check for interaction features.", cause: "Linear models can't learn interactions without them.", fix: "Add a feature cross, or use trees or a neural network." },
+  { t: "Serving results differ from training even with the same model", diag: "Compare preprocessing code paths for training and serving.", cause: "Imputation or scaling statistics recomputed differently at serving.", fix: "Store preprocessing with the model (TRANSFORM, TensorFlow Transform, preprocessing layers)." },
+  { t: "Thousands of near-duplicate rows inflate scores", diag: "Hash rows and count duplicates across splits.", cause: "Train-test contamination through duplicates.", fix: "Deduplicate before splitting; split by group if duplicates come from one entity." },
+];
+
+const cheat = [
+  ["Baseline", "Simplest reasonable predictor a model must beat"],
+  ["Label", "The value to predict; must be defined with a time window"],
+  ["Stratified split", "Same class ratio in every split"],
+  ["Time-based split", "Train on the past, validate and test on the future"],
+  ["Group-based split", "All rows of one entity in one split"],
+  ["data_split_method", "BigQuery ML: AUTO_SPLIT, RANDOM, CUSTOM, SEQ, NO_SPLIT"],
+  ["FARM_FINGERPRINT", "Hash for reproducible SQL splits"],
+  ["Validation set", "For choosing models, features, hyperparameters, thresholds"],
+  ["Test set", "Touched once, for the final estimate"],
+  ["Target leakage", "A feature recorded after, or because of, the outcome"],
+  ["Temporal leakage", "Using future information in features or splits"],
+  ["Train-test contamination", "Statistics or duplicates shared across splits"],
+  ["Point-in-time lookup", "Feature values as of the label timestamp"],
+  ["ML.FEATURES_AT_TIME", "BigQuery point-in-time feature retrieval"],
+  ["Standardization", "(x − mean) / std; ML.STANDARD_SCALER"],
+  ["Min-max scaling", "Rescale to [0, 1]; ML.MIN_MAX_SCALER"],
+  ["Robust scaling", "Median and IQR; ML.ROBUST_SCALER"],
+  ["Log transform", "Compresses heavy right tails"],
+  ["Bucketizing", "Numbers to ranges; ML.BUCKETIZE, ML.QUANTILE_BUCKETIZE"],
+  ["Clipping", "Cap outliers at percentiles"],
+  ["ML.POLYNOMIAL_EXPAND", "Polynomial and interaction terms"],
+  ["One-hot encoding", "Binary column per value; ML.ONE_HOT_ENCODER"],
+  ["Ordinal encoding", "Integers for ordered categories"],
+  ["Feature hashing", "hash(value) mod N; bounded size, collisions"],
+  ["Embedding", "Learned dense vector per value"],
+  ["Target encoding", "Mean label per category; needs out-of-fold"],
+  ["Feature cross", "Combine features to model interactions; ML.FEATURE_CROSS"],
+  ["OOV bucket", "Slot for values unseen in training"],
+  ["TF-IDF", "Word weights by frequency and rarity; ML.TF_IDF"],
+  ["ML.NGRAMS", "Word n-grams in BigQuery ML"],
+  ["ML.GENERATE_EMBEDDING", "Text or image embeddings from BigQuery"],
+  ["Cyclical encoding", "sin/cos of hour, day, month"],
+  ["Lag / rolling feature", "Past values or window aggregates ending before t"],
+  ["Augmentation", "Synthetic variations of images or text"],
+  ["Imputation", "Fill missing values; ML.IMPUTER"],
+  ["Missing indicator", "Binary flag that a value was missing"],
+  ["Filter selection", "Correlation, mutual information, chi-squared"],
+  ["Wrapper selection", "Forward/backward selection, RFE"],
+  ["L1 (lasso)", "Pushes useless weights to exactly zero"],
+  ["PCA", "Linear dimensionality reduction"],
+  ["Class weights", "Upweight rare-class loss; auto_class_weights, scale_pos_weight"],
+  ["Downsampling", "Keep a fraction of majority rows"],
+  ["Downsample and upweight", "Downsample by k, weight kept rows by k"],
+  ["Oversampling", "Duplicate minority rows (training only)"],
+  ["SMOTE", "Synthetic minority examples by interpolation"],
+  ["Focal loss", "Down-weights easy examples"],
+  ["Threshold moving", "Change the decision cutoff instead of the data"],
+  ["Prior correction", "p = s·k / (s·k + 1 − s) after keeping fraction k of negatives"],
+  ["TensorFlow Transform", "Full-pass preprocessing exported to serving"],
+  ["TRANSFORM clause", "BigQuery ML preprocessing saved with the model"],
+];
+
+const cards = [
+  ["The leakage test question", "Is this feature known at prediction time?"],
+  ["Split for forecasting", "Time-based"],
+  ["Split when users have many rows", "Group-based"],
+  ["Split for rare classes", "Stratified"],
+  ["What do you tune on?", "Validation, never test"],
+  ["Fit scalers on…", "Training data only"],
+  ["Trees need scaling?", "No"],
+  ["Heavy right tail", "Log transform"],
+  ["Huge, growing cardinality", "Hashing or embeddings"],
+  ["Interactions in linear models", "Feature crosses"],
+  ["Hour of day", "Sin/cos encoding"],
+  ["Target encoding risk", "Leakage; use out-of-fold"],
+  ["Missingness is informative", "Add an indicator"],
+  ["L1 vs L2 for selection", "L1 zeroes weights"],
+  ["Accuracy on 0.1% positives", "Meaningless"],
+  ["BigQuery ML imbalance option", "auto_class_weights=TRUE"],
+  ["XGBoost imbalance parameter", "scale_pos_weight ≈ negatives / positives"],
+  ["Resample which split?", "Training only"],
+  ["Calibrated + fast with imbalance", "Downsample and upweight"],
+  ["SMOTE works on", "Numeric tabular data"],
+  ["Class weights side effect", "Miscalibrated probabilities"],
+  ["Point-in-time correctness prevents", "Temporal leakage"],
+  ["Same preprocessing at serving", "TRANSFORM / TF Transform / in-model layers"],
+  ["Often the biggest imbalance fix", "More (labelled) positives"],
+];
+
+const traps = [
+  "<strong>Ask of every feature: is it known at prediction time?</strong> If not, it leaks.",
+  "<strong>Random splits leak the future</strong> for time-dependent data; split by time.",
+  "<strong>Keep each user, patient or device in one split.</strong>",
+  "<strong>Fit preprocessing on training data only</strong> and reuse the same statistics at serving.",
+  "<strong>Resample only the training set</strong>; validate and test at the real class ratio.",
+  "<strong>Accuracy hides imbalance</strong>; use precision, recall, PR AUC.",
+  "<strong>Class weights and resampling distort probabilities</strong>: recalibrate, or downsample and upweight.",
+  "<strong>Trees don't need scaling</strong>; linear models, neural networks and k-means do.",
+  "<strong>One-hot for few values; hashing or embeddings for many</strong>; plan for unseen values.",
+  "<strong>Linear models need feature crosses</strong> for interactions.",
+  "<strong>Target encoding must be out-of-fold</strong>, or it leaks the label.",
+  "<strong>A sudden near-perfect score means leakage</strong> until proven otherwise.",
+  "<strong>Windows must end before the prediction time</strong> for lag and rolling features.",
+  "<strong>Often the best imbalance fix is more positive examples.</strong>",
+];
+
+const questions = [
+  { q: "A churn model's validation AUC rises from 0.81 to 0.99 after adding 'days_since_cancellation_request'. What's the most likely explanation?", opts: ["The model finally converged", "Target leakage: the feature exists only once the customer is already leaving", "The feature needs standardization", "The validation set is too large"], a: 1, why: "A near-perfect jump from one feature that's recorded after the outcome is classic target leakage." },
+  { q: "You're forecasting daily demand. How should you split the data?", opts: ["Random 80/10/10 split", "Stratify by demand level", "Use the same data for training and test", "Train on earlier dates and validate and test on later dates"], a: 3, why: "Time-based splits prevent the model from learning from the future it's evaluated on." },
+  { q: "A dataset has many transactions per customer. The model must generalize to new customers. Which split is right?", opts: ["Group-based split by customer ID", "Random split by transaction", "Time-based split only", "No split; use cross-validation on all rows"], a: 0, why: "Rows of one customer in both sets let the model memorize customers." },
+  { q: "Where should means and standard deviations for scaling be computed?", opts: ["On the full dataset before splitting", "Separately on each split", "On the training set only, then applied to validation, test and serving", "On the test set"], a: 2, why: "Using all data leaks test information; serving must reuse the training statistics." },
+  { q: "Which model family generally does NOT benefit from standardizing numeric features?", opts: ["Logistic regression with gradient descent", "Neural networks", "Gradient-boosted decision trees", "k-means clustering"], a: 2, why: "Trees split on thresholds, which scaling doesn't change." },
+  { q: "A feature has 40 million distinct values and new ones appear daily. Which encoding is most practical for a linear model?", opts: ["Feature hashing into a fixed number of buckets", "One-hot encoding", "Ordinal encoding", "Dropping the feature"], a: 0, why: "Hashing bounds the feature size and handles unseen values, at the cost of some collisions." },
+  { q: "A linear model must capture that mobile users in one country behave very differently. What helps most?", opts: ["Standardizing country", "Log-transforming device", "Removing country", "A feature cross of country and device"], a: 3, why: "Crosses let linear models learn interactions between features." },
+  { q: "How should 'hour of day' be encoded so 23:00 and 00:00 are close?", opts: ["An integer 0–23", "Sine and cosine of 2π·hour/24", "One-hot with 24 columns only", "Min-max scaling"], a: 1, why: "Cyclical encoding places the hours on a circle." },
+  { q: "Income values range from 0 to 50 million with a long right tail. Which transform is most appropriate for a neural network?", opts: ["log(income + 1), then standardize", "Min-max scaling only", "One-hot encoding", "Leave raw values"], a: 0, why: "A log compresses the tail; standardization then centres the values." },
+  { q: "Target encoding replaces a category with the mean label. What's the main risk and fix?", opts: ["Too many columns; use one-hot instead", "It only works for regression", "Leakage; compute it out-of-fold with smoothing", "It slows serving; use hashing"], a: 2, why: "Including the row's own label in its encoding leaks the target." },
+  { q: "Missing phone numbers correlate with fraud. How should you handle missing values in this column?", opts: ["Drop all rows with a missing phone", "Drop the column", "Fill with random numbers", "Impute a value and add a 'phone_missing' indicator"], a: 3, why: "The indicator keeps the predictive signal of missingness." },
+  { q: "Which regularization method also performs feature selection by setting weights to exactly zero?", opts: ["L2 (ridge)", "L1 (lasso)", "Dropout", "Batch normalization"], a: 1, why: "L1's penalty drives uninformative weights to zero." },
+  { q: "Fraud is 0.1% of transactions. A model predicts 'not fraud' for everything. What's the most direct fix in BigQuery ML?", opts: ["Increase max_iterations", "Switch to LINEAR_REG", "Remove all negatives", "Retrain with auto_class_weights=TRUE and evaluate with precision, recall and PR AUC"], a: 3, why: "Class weights make rare-class errors count; imbalance-aware metrics show whether it helped." },
+  { q: "You oversampled positives before splitting into train and test. What goes wrong?", opts: ["Copies of the same rare rows land in both sets, inflating test scores", "Training becomes slower but scores are unaffected", "The model can't learn the majority class", "Nothing; it's recommended"], a: 0, why: "Resampling must happen after the split, on training data only." },
+  { q: "You downsampled negatives to 1% of their original count for training. Probabilities are used for expected-cost decisions. What should you do?", opts: ["Use the raw probabilities as they are", "Upweight kept negatives by 100 (or correct the probabilities afterwards)", "Downsample the test set too", "Switch to accuracy"], a: 1, why: "Downsampling inflates positive probabilities; upweighting or prior correction restores calibration." },
+  { q: "Which statement about SMOTE is correct?", opts: ["It removes majority examples near the boundary", "It works best on raw images", "It creates synthetic minority examples by interpolating between neighbours, and should be applied to training data only", "It should be applied to the test set too"], a: 2, why: "SMOTE synthesizes minority points; test data must stay real." },
+  { q: "Positives are so rare (and so varied) that you have only 40 labelled examples. Which framing may work better than classification?", opts: ["Anomaly detection on normal behaviour (for example an autoencoder or k-means distance)", "Multi-class classification", "Linear regression on the label", "Ranking"], a: 0, why: "Modelling 'normal' and flagging deviations works when positives are too few to learn." },
+  { q: "What's the safest way to build a '30-day average spend' feature for a model scored daily?", opts: ["Average over all available data per customer", "A 30-day window centred on the prediction date", "Average computed on the test set", "Average over the 30 days ending the day before each prediction date"], a: 3, why: "Windows must end before the prediction time to avoid using the future." },
+  { q: "The same product appears as 'iPhone 15', 'iphone15' and 'IPHONE 15'. What should you do before encoding?", opts: ["Hash them separately", "One-hot all variants", "Normalize values (case, whitespace, spelling) into canonical categories", "Drop the column"], a: 2, why: "Cleaning first avoids splitting one value's signal across several encodings." },
+  { q: "Which tool computes a vocabulary over terabytes of training data and attaches the same lookup to the serving model?", opts: ["pandas in a notebook", "TensorFlow Transform on Dataflow", "Cloud Vision API", "Model Monitoring"], a: 1, why: "TF Transform runs full-pass analysis at scale and exports the transform graph." },
+  { q: "A model must handle product categories that didn't exist during training. Which design handles them gracefully?", opts: ["Retrain every time a category appears, or crash", "Map them to the most frequent category", "Reserve out-of-vocabulary buckets or use hashing", "Delete the requests"], a: 2, why: "OOV buckets and hashing give unseen values a defined representation." },
+  { q: "For classification with 2% positives, which split preserves the class ratio in validation and test?", opts: ["Group split only", "Stratified split", "Sequential split", "No split"], a: 1, why: "Stratification keeps the rare class represented in every split." }
+];
+
+const samples = [];
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+function imb() {
+  const P = Math.max(1, num("iP", 1)), N = Math.max(1, num("iN", 1)), K = Math.min(1, Math.max(0.0001, num("iK", 1)));
+  const S = Math.min(0.9999, Math.max(0, num("iS", 0.5))), T = P + N;
+  const wPos = T / (2 * P), wNeg = T / (2 * N), keptN = Math.round(N * K);
+  const odds = S / (1 - S), real = odds * K / (1 + odds * K);
+  const out = [];
+  out.push("<p>Positives are <strong>" + pct(P / T) + "</strong> of the data (1 in " + Math.round(T / P).toLocaleString("en-US") + "). A model that always says \"negative\" scores " + pct(N / T) + " accuracy.</p>");
+  out.push("<p><strong>Balanced class weights</strong> (N / (2 × class count)): positive " + wPos.toFixed(2) + ", negative " + wNeg.toFixed(3) + ". Ratio " + (wPos / wNeg).toFixed(0) + ":1, which is what XGBoost's <code>scale_pos_weight</code> would be (negatives ÷ positives).</p>");
+  out.push("<p><strong>Downsampling</strong> keeps " + keptN.toLocaleString("en-US") + " negatives, so training sees " + pct(P / (P + keptN)) + " positives (about 1:" + (keptN / P).toFixed(1) + "). To keep probabilities calibrated, <strong>upweight each kept negative by " + (1 / K).toFixed(1) + "</strong>.</p>");
+  out.push("<p>Without upweighting, a downsampled model's score of " + S + " corresponds to a real-world probability of about <strong>" + real.toFixed(3) + "</strong> (p = s·k / (s·k + 1 − s)).</p>");
+  out.push("<p class=\"dim\">Validate and test on the original class ratio; only the training set is resampled.</p>");
+  $("iOut").innerHTML = out.join("");
+}
+wire([[["iP", "iN", "iK", "iS"], imb]]);
+</script>
+</body>
+</html>

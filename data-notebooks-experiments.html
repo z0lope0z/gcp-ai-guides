@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Tools, Feature Store, Notebooks and Experiments</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 2 · 2.1–2.3</span></div>
+<h1>Data tools, Feature Store, notebooks and experiment tracking</h1>
+<p class="subtitle">Section 2 on Google Cloud: where each kind of data lives, choosing BigQuery, Dataflow, Spark or pandas for preprocessing, the BigQuery-backed Feature Store, protecting PII, Workbench vs Colab Enterprise and their security, and tracking experiments, artifacts and lineage.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#data">Where data lives</a></li>
+    <li><a href="#preprocess">Choosing a preprocessing tool</a></li>
+    <li><a href="#featurestore">Feature Store on Agent Platform</a></li>
+    <li><a href="#privacy">Privacy and sensitive data</a></li>
+    <li><a href="#notebooks">Prototyping in notebooks</a></li>
+    <li><a href="#experiments">Experiments, lineage and the registry</a></li>
+    <li><a href="#lab">Lab: from raw data to a tracked experiment</a></li>
+    <li><a href="#chooser">"Which data tool?" chooser</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (20 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="data">1. Where data lives</h2>
+<table>
+  <tr><th>Data</th><th>Store</th><th>Why</th></tr>
+  <tr><td>Structured / tabular</td><td><strong>BigQuery</strong></td><td>SQL exploration, BQML, direct reading by AutoML, pipelines and the Feature Store</td></tr>
+  <tr><td>Images, audio, video, documents</td><td><strong>Cloud Storage</strong>, with a manifest (CSV/JSONL of URIs and labels)</td><td>Cheap object storage; training reads it through Cloud Storage FUSE at <code>/gcs/&lt;bucket&gt;</code></td></tr>
+  <tr><td>High-throughput training input</td><td>TFRecord files or sharded Parquet in Cloud Storage</td><td>Large sequential reads beat millions of small files</td></tr>
+  <tr><td>Streaming events</td><td>Pub/Sub → Dataflow → BigQuery / Feature Store</td><td>Real-time features and monitoring</td></tr>
+  <tr><td>Low-latency key lookups for serving</td><td>Feature Store online serving (or Bigtable)</td><td>Millisecond reads by entity ID</td></tr>
+</table>
+<h3>Reading data efficiently for training</h3>
+<ul>
+  <li><strong>BigQuery Storage Read API</strong>: fast, parallel streaming of table rows into training jobs (used by BigQuery connectors in TensorFlow, PyTorch and Spark).</li>
+  <li><strong>Cloud Storage FUSE</strong>: custom training jobs see buckets as files under <code>/gcs/BUCKET</code>.</li>
+  <li>Prefer <strong>fewer, larger files</strong> (TFRecord, Parquet shards of roughly 100 MB or more) over millions of tiny files.</li>
+  <li>Keep data and compute in the <strong>same region</strong> to avoid egress cost and latency.</li>
+  <li>Use managed <strong>datasets</strong> (tabular, image, text, video) on Agent Platform for AutoML and labelled data versioning.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="preprocess">2. Choosing a preprocessing tool</h2>
+<table>
+  <tr><th>Tool</th><th>Best for</th><th>Not for</th></tr>
+  <tr><td><strong>BigQuery SQL</strong></td><td>Joins, aggregates, window features on structured data at any scale; serverless</td><td>Complex per-record Python logic, image processing</td></tr>
+  <tr><td><strong>Dataflow</strong> (Apache Beam)</td><td>Large batch <em>and</em> streaming pipelines with the same code; autoscaling; TensorFlow Transform runs on it</td><td>Small data that fits in memory (overkill)</td></tr>
+  <tr><td><strong>Dataproc / Serverless for Apache Spark</strong></td><td>Existing Spark or Hadoop code and skills; lift-and-shift</td><td>Greenfield streaming when Dataflow fits</td></tr>
+  <tr><td><strong>pandas / in-memory Python</strong> in a notebook</td><td>Exploration and small datasets</td><td>Anything that doesn't fit in one machine's memory</td></tr>
+  <tr><td><strong>Data preparation in BigQuery</strong> (Gemini-assisted)</td><td>Low-code cleaning by analysts</td><td>Production pipelines needing tests and versioning</td></tr>
+</table>
+<div class="note">Feature engineering itself (leakage, splits, encoding, scaling, imbalance) is covered in depth in <a href="ml-data-features-imbalance.html">ML fundamentals 1</a>.</div>
+<h3>Data validation and quality</h3>
+<table>
+  <tr><th>Tool</th><th>Use</th></tr>
+  <tr><td>TensorFlow Data Validation (TFDV)</td><td>Infer a schema, compute statistics, detect anomalies and skew between datasets</td></tr>
+  <tr><td>Dataplex Universal Catalog data quality and profiling</td><td>Rules and profiles on BigQuery tables; lineage and discovery across the data estate</td></tr>
+  <tr><td>Pipeline validation steps</td><td>Fail fast on row counts, nulls, ranges and schema changes before training</td></tr>
+</table>
+<h3>Labelling data</h3>
+<ul>
+  <li>Write clear labelling guidelines with examples; measure agreement between labellers.</li>
+  <li>Use Gemini to pre-label and humans to review, or active learning to label the most informative examples first.</li>
+  <li>Store labels with their source and version so models can be traced to the labels used.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="featurestore">3. Feature Store on Agent Platform</h2>
+<p>The <strong>Feature Store</strong> lets teams define features once and reuse them for training and serving, which removes a major source of training-serving skew. The current version is BigQuery-native:</p>
+<ul>
+  <li><strong>Feature data stays in BigQuery</strong> (tables or views). A <strong>feature group</strong> registers a BigQuery source and its features.</li>
+  <li><strong>Offline</strong>: training data comes from BigQuery with <strong>point-in-time correct</strong> lookups (feature values as they were at each label's timestamp), avoiding leakage.</li>
+  <li><strong>Online</strong>: an <strong>online store</strong> with <strong>feature views</strong> syncs selected features for low-latency serving. Bigtable online serving suits large data; optimized online serving gives the lowest latency and supports embedding (vector) retrieval.</li>
+  <li>Sync on a schedule or continuously; serve with <code>FetchFeatureValues</code> by entity ID.</li>
+</ul>
+<div class="note">The older "legacy" Feature Store (featurestores, entity types, its own storage) still appears in study material. New designs use the BigQuery-backed version.</div>
+<pre><code>Offline (training)                          Online (serving)
+BigQuery tables/views  ── feature groups ──► feature views ──sync──► online store
+        │                                                                 │
+point-in-time join with labels                               FetchFeatureValues(entity_id)
+        ▼                                                                 ▼
+  training dataset                                              endpoint / app</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="privacy">4. Privacy and sensitive data</h2>
+<table>
+  <tr><th>Control</th><th>Use</th></tr>
+  <tr><td><strong>Sensitive Data Protection</strong> (formerly Cloud DLP)</td><td>Discover and classify PII (personally identifiable information) in BigQuery and Cloud Storage; de-identify by masking, redaction, bucketing, date shifting, tokenization or format-preserving encryption before training</td></tr>
+  <tr><td>IAM, least privilege, separate service accounts</td><td>Who can read raw vs de-identified data</td></tr>
+  <tr><td>BigQuery column-level security, policy tags, row-level security, dynamic data masking</td><td>Analysts see masked columns; the training pipeline reads only what it needs</td></tr>
+  <tr><td><strong>CMEK</strong> (customer-managed encryption keys)</td><td>Compliance requirement to control keys for datasets, models, endpoints and pipelines</td></tr>
+  <tr><td><strong>VPC Service Controls</strong></td><td>A perimeter that stops data exfiltration from BigQuery, Cloud Storage and Agent Platform to outside projects</td></tr>
+  <tr><td>Differential privacy, k-anonymity checks, aggregation</td><td>Reduce re-identification risk in shared data</td></tr>
+</table>
+<div class="warn">Dropping the "name" column isn't de-identification: free text, IDs and combinations of quasi-identifiers (ZIP code, birth date, gender) still identify people. Use Sensitive Data Protection to find and transform them.</div>
+
+<!-- ============================================================ -->
+<h2 id="notebooks">5. Prototyping in notebooks</h2>
+<table>
+  <tr><th></th><th><strong>Agent Platform Workbench</strong> (instances)</th><th><strong>Colab Enterprise</strong></th></tr>
+  <tr><td>What</td><td>A JupyterLab VM you configure: machine type, GPUs, disks, custom containers, extensions</td><td>A managed Colab notebook with runtimes from templates; notebooks stored and shared like documents</td></tr>
+  <tr><td>Best for</td><td>Long-running, customized environments; data scientists who need control and terminal access</td><td>Quick collaboration and sharing, minimal setup, consistent runtimes set by admins</td></tr>
+  <tr><td>Shared features</td><td colspan="2">BigQuery and Cloud Storage integration, Gemini code assistance, scheduled notebook runs (executions), IAM-controlled access, CMEK and VPC options</td></tr>
+</table>
+<h3>Security and collaboration best practices</h3>
+<ul>
+  <li>Run the notebook as a dedicated <strong>service account</strong> with least privilege; for personal instances use <strong>single-user access</strong> (end-user credentials) so actions are attributable.</li>
+  <li><strong>No public IP</strong>, a private VPC subnet, and VPC Service Controls around sensitive projects; reach Google APIs through Private Google Access.</li>
+  <li><strong>CMEK</strong> on disks when required; never store keys or passwords in notebooks: use <strong>Secret Manager</strong>.</li>
+  <li><strong>Idle shutdown</strong> to stop paying for forgotten GPUs.</li>
+  <li>Keep code in <strong>Git</strong> (Workbench has a Git extension); move reusable code into packages and pipelines rather than sharing notebooks by email.</li>
+  <li>Admins standardize runtimes with Colab Enterprise <strong>runtime templates</strong> or Workbench custom container images.</li>
+</ul>
+<h3>Frameworks and models</h3>
+<p>Both environments come with TensorFlow, PyTorch, scikit-learn, XGBoost and JAX images, plus the Agent Platform SDK. From a notebook you can call Gemini, deploy open models from Model Garden for experiments, or open a Model Garden model card's sample notebook directly in Colab Enterprise.</p>
+<div class="warn">A notebook is a prototyping tool, not a production system. "Schedule the notebook to retrain nightly in production" loses to a pipeline with validation, lineage and alerting, except for genuinely lightweight reporting jobs.</div>
+
+<!-- ============================================================ -->
+<h2 id="experiments">6. Experiments, lineage and the registry</h2>
+<table>
+  <tr><th>Tool</th><th>Use</th></tr>
+  <tr><td><strong>Experiments</strong> (Agent Platform)</td><td>Log parameters, metrics and artifacts per run from notebooks or jobs; compare runs side by side; autologging for common frameworks</td></tr>
+  <tr><td><strong>Agent Platform TensorBoard</strong></td><td>Managed TensorBoard for loss curves, profiles and comparisons across training jobs</td></tr>
+  <tr><td><strong>Pipelines</strong> (Kubeflow Pipelines on Agent Platform)</td><td>Repeatable multi-step experiments with automatic lineage, caching and parameters</td></tr>
+  <tr><td><strong>Kubeflow Pipelines on GKE</strong></td><td>When you must run the open-source stack yourself (existing Kubeflow investment, custom cluster needs)</td></tr>
+  <tr><td><strong>ML Metadata</strong></td><td>The store behind lineage: artifacts (datasets, models), executions (steps) and contexts (experiments, pipeline runs)</td></tr>
+  <tr><td><strong>Model Registry</strong></td><td>Versions and aliases of models, with evaluation results attached</td></tr>
+</table>
+<pre><code>from google.cloud import aiplatform
+aiplatform.init(project="PROJECT_ID", location="us-central1",
+                experiment="churn-xgb", experiment_tensorboard=True)
+aiplatform.start_run("run-depth6-lr01")
+aiplatform.log_params({"max_depth": 6, "learning_rate": 0.1})
+# ... train ...
+aiplatform.log_metrics({"auc_pr": 0.71, "recall_at_p90": 0.42})
+aiplatform.end_run()
+aiplatform.get_experiment_df()        # compare runs as a DataFrame</code></pre>
+<h3>Lineage questions and where they're answered</h3>
+<table>
+  <tr><th>Question</th><th>Answered by</th></tr>
+  <tr><td>Which run had the best PR AUC, and with which parameters?</td><td>Experiments (compare runs)</td></tr>
+  <tr><td>Why did loss plateau at epoch 12?</td><td>Agent Platform TensorBoard</td></tr>
+  <tr><td>Which dataset version and pipeline run produced the production model?</td><td>Pipeline lineage in ML Metadata, linked from Model Registry</td></tr>
+  <tr><td>Which model version is serving, and what was its evaluation?</td><td>Model Registry (versions, aliases such as <code>default</code> or <code>champion</code>, attached evaluations)</td></tr>
+</table>
+<div class="note">Metrics, thresholds and evaluation methods are covered in <a href="ml-model-evaluation.html">ML fundamentals 2</a> and <a href="llm-evaluation.html">LLM and agent evaluation</a>.</div>
+<div class="warn">Comparing two models on different test sets, or tuning the threshold on the test set, invalidates the comparison. Tune on validation; report on a held-out test set.</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">7. Lab: from raw data to a tracked experiment</h2>
+<ol>
+  <li>Create a Colab Enterprise notebook (or a Workbench instance with idle shutdown on, no public IP) in <code>us-central1</code>.</li>
+  <li>Run Sensitive Data Protection inspection on a sample table with a free-text column; create a de-identified copy (masking or tokenization).</li>
+  <li>Register the de-identified BigQuery table as a Feature Store feature group; create a feature view with two features and sync it to an online store; fetch values for one entity ID.</li>
+  <li>Build a point-in-time training set by joining labels with feature values as of each label timestamp.</li>
+  <li>Train two XGBoost variants in the notebook; log parameters and metrics to Experiments; compare them with <code>get_experiment_df()</code>.</li>
+</ol>
+<p><strong>Clean up:</strong> delete the online store, feature view, de-identified tables and notebook runtime.</p>
+
+<!-- ============================================================ -->
+<h2 id="chooser">8. "Which data tool?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">9. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">10. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. Dataflow, feature view, DLP, Workbench, lineage…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">11. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">12. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Dataflow for big batch and streaming with one codebase; Dataproc for existing Spark.</strong></li>
+<li><strong>Feature Store is BigQuery-native now</strong>: offline in BigQuery, online via feature views.</li>
+<li><strong>Point-in-time joins prevent leakage</strong> in training sets built from feature history.</li>
+<li><strong>Dropping obvious PII columns isn't de-identification.</strong> Use Sensitive Data Protection.</li>
+<li><strong>VPC Service Controls stop exfiltration</strong>, even with valid credentials; IAM alone doesn't.</li>
+<li><strong>No secrets in notebooks</strong>: Secret Manager and service accounts.</li>
+<li><strong>Notebooks are for prototyping</strong>; production retraining belongs in pipelines.</li>
+<li><strong>Colab Enterprise for easy sharing and admin-set runtimes; Workbench for customized VMs.</strong></li>
+<li><strong>Experiments compare runs; ML Metadata holds lineage; Model Registry holds versions.</strong></li>
+<li><strong>Many tiny files starve GPUs</strong>; shard and prefetch.</li>
+<li><strong>Co-locate data and compute</strong> by region.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">13. Practice quiz (20 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="llm-evaluation.html">← LLM and agent evaluation</a><a href="training-tuning-hardware.html">Next: Training, tuning and hardware →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Same features for training and low-latency serving", "Feature Store on Agent Platform (BigQuery offline, online store for serving)", "One definition, point-in-time training data, millisecond lookups.", "Recomputing features in the app at request time"],
+  ["Large streaming and batch preprocessing with one codebase", "Dataflow (Apache Beam)", "Unified batch and stream model with autoscaling.", "pandas in a notebook"],
+  ["Team has a big existing Spark codebase", "Dataproc or Serverless for Apache Spark", "Runs Spark with minimal rewrites.", "Rewriting everything in Beam first"],
+  ["Remove PII from training data before data scientists see it", "Sensitive Data Protection de-identification", "Finds and transforms PII, including in free text.", "Dropping the name column"],
+  ["Compare 30 training runs' parameters and metrics", "Experiments on Agent Platform (with TensorBoard)", "Logged params and metrics, compared side by side.", "A shared spreadsheet"],
+  ["Analysts see masked salaries; HR sees real values", "BigQuery policy tags with dynamic data masking", "Column-level control in place.", "Copying a masked table for each group"],
+  ["Compliance requires controlling the encryption keys", "CMEK on datasets, models, endpoints and pipelines", "Customer-managed keys in Cloud KMS.", "Default Google-managed encryption"],
+  ["Training reads millions of small JPEGs slowly", "Pack into TFRecord or larger shards; read via Cloud Storage FUSE", "Fewer, larger sequential reads.", "More GPUs"],
+  ["Stream training rows from BigQuery fast", "BigQuery Storage Read API", "Parallel high-throughput reads.", "Exporting to CSV first"],
+  ["Detect schema changes and anomalies before training", "TFDV or a pipeline validation step", "Fail fast on bad data.", "Waiting for model metrics to drop"],
+  ["Forgotten GPU notebooks run all weekend", "Idle shutdown on Workbench / runtime templates", "Stops paying for idle compute.", "Manual reminders"],
+  ["Why did loss stall at epoch 12?", "Agent Platform TensorBoard", "Curves and profiles per run.", "Model Registry"]
+];
+
+const samples = [
+
+];
+
+const traps = [
+  "<strong>Dataflow for big batch and streaming with one codebase; Dataproc for existing Spark.</strong>",
+  "<strong>Feature Store is BigQuery-native now</strong>: offline in BigQuery, online via feature views.",
+  "<strong>Point-in-time joins prevent leakage</strong> in training sets built from feature history.",
+  "<strong>Dropping obvious PII columns isn't de-identification.</strong> Use Sensitive Data Protection.",
+  "<strong>VPC Service Controls stop exfiltration</strong>, even with valid credentials; IAM alone doesn't.",
+  "<strong>No secrets in notebooks</strong>: Secret Manager and service accounts.",
+  "<strong>Notebooks are for prototyping</strong>; production retraining belongs in pipelines.",
+  "<strong>Colab Enterprise for easy sharing and admin-set runtimes; Workbench for customized VMs.</strong>",
+  "<strong>Experiments compare runs; ML Metadata holds lineage; Model Registry holds versions.</strong>",
+  "<strong>Many tiny files starve GPUs</strong>; shard and prefetch.",
+  "<strong>Co-locate data and compute</strong> by region."
+];
+
+const questions = [
+  { q: "Data scientists need to join raw clickstream data (terabytes per day, streaming and historical backfills) into features with the same code. Which tool fits?", opts: ["pandas in Colab Enterprise", "Dataflow (Apache Beam)", "Cloud Vision API", "BigQuery ML k-means"], a: 1, why: "Beam pipelines on Dataflow run the same code in batch and streaming at scale." },
+  { q: "A company has hundreds of existing PySpark feature jobs and wants to move them to Google Cloud quickly. What should they use?", opts: ["Rewrite them all in BigQuery ML", "Run them in a Workbench notebook", "Dataflow templates", "Dataproc or Serverless for Apache Spark"], a: 3, why: "Managed Spark runs existing code with minimal changes." },
+  { q: "Training and online serving must use identical feature definitions, and training data must reflect feature values as of each label's time. What should you use?", opts: ["Feature Store on Agent Platform: BigQuery offline data with point-in-time lookups and an online store for serving", "Recompute features in the app at request time", "Cloud Storage CSVs per day", "Memorystore only"], a: 0, why: "Feature Store shares definitions across training and serving, with point-in-time correct training data and low-latency online reads." },
+  { q: "A healthcare dataset contains patient notes with names and phone numbers in free text. Data scientists must not see PII. What's the best approach?", opts: ["Drop the patient_name column", "Encrypt the bucket with CMEK", "De-identify with Sensitive Data Protection before giving access", "Limit the notebook's machine size"], a: 2, why: "Sensitive Data Protection detects and transforms PII inside free text; dropping a column or encrypting at rest doesn't remove it from what users see." },
+  { q: "A regulated team must prevent data in BigQuery and Cloud Storage from being copied to projects outside the organization, even by users with valid credentials. Which control fits?", opts: ["Idle shutdown on notebooks", "Model Armor", "VPC Service Controls perimeter", "A larger IAM role"], a: 2, why: "VPC Service Controls blocks data movement across the perimeter regardless of IAM grants." },
+  { q: "An admin wants data scientists to use notebooks with consistent, approved environments, minimal setup, and easy sharing of notebooks with colleagues. What fits best?", opts: ["Colab Enterprise with admin-defined runtime templates", "Each scientist installs Jupyter on a laptop", "A shared VM with one login", "Cloud Shell"], a: 0, why: "Colab Enterprise gives managed runtimes from templates and IAM-based sharing." },
+  { q: "Which notebook practice is a security best practice?", opts: ["Hard-coding API keys in the first cell", "Granting all users Owner on the project", "Disabling audit logs to save cost", "No public IP, a least-privilege service account, and secrets in Secret Manager"], a: 3, why: "Private networking, least privilege and a secrets manager are the standard controls." },
+  { q: "Your team runs dozens of training runs with different hyperparameters from notebooks and wants to compare metrics and parameters across runs. What should they use?", opts: ["Model Monitoring", "Experiments on Agent Platform with TensorBoard", "Cloud Build", "Translation API"], a: 1, why: "Experiments logs params, metrics and artifacts per run and compares them." },
+  { q: "An auditor asks which dataset version and pipeline run produced the model currently in production. Where is that recorded?", opts: ["ML Metadata lineage from the pipeline (visible from Model Registry and the pipeline run)", "Cloud Billing reports", "The endpoint's traffic split", "Model Armor logs"], a: 0, why: "Pipelines record artifacts and executions in ML Metadata, giving lineage from data to model." },
+  { q: "Analysts should see salary columns masked while the HR team sees real values, in the same BigQuery table. What fits?", opts: ["A separate copy of the table per group", "VPC Service Controls", "Policy tags with dynamic data masking", "CMEK"], a: 2, why: "Column-level policy tags apply masking per user group in place." },
+  { q: "A compliance rule says the company must control and be able to revoke the encryption keys for training data and models. What should you use?", opts: ["Default encryption", "Sensitive Data Protection", "Row-level security", "Customer-managed encryption keys (CMEK) in Cloud KMS"], a: 3, why: "CMEK gives customer control over keys." },
+  { q: "A training job reads 3 million small image files and GPUs sit mostly idle. What's the best first fix?", opts: ["Add more GPUs", "Pack images into larger TFRecord or Parquet shards and prefetch in parallel", "Use a larger machine type for the chief only", "Convert images to CSV"], a: 1, why: "Per-file overhead dominates; larger shards stream efficiently." },
+  { q: "A training set built by joining labels with the latest customer features shows excellent offline metrics but poor production results. What's the likely cause?", opts: ["Too few epochs", "The model is too small", "Wrong region", "Features reflect values after the label time; use point-in-time lookups"], a: 3, why: "Latest values leak future information." },
+  { q: "Which statement about de-identification is correct?", opts: ["Removing names isn't enough; quasi-identifiers and free text can still identify people", "Dropping the name column fully anonymizes data", "Hashing emails always prevents re-identification", "PII only exists in columns named 'name' or 'email'"], a: 0, why: "Combinations like ZIP code, birth date and gender identify people." },
+  { q: "Where should an API key used by a notebook be stored?", opts: ["In the first notebook cell", "Secret Manager, accessed by the notebook's service account", "In a shared Cloud Storage text file", "In the notebook's markdown"], a: 1, why: "Secrets belong in a secret store with IAM." },
+  { q: "Which tool would you use to detect that a new day's training data has a changed schema and unusual value distributions before training?", opts: ["Model Registry", "Explainable AI", "TensorFlow Data Validation (or a pipeline validation step)", "Cloud CDN"], a: 2, why: "TFDV computes statistics and flags schema anomalies." },
+  { q: "Why is the BigQuery Storage Read API useful for training?", opts: ["It streams table data in parallel at high throughput into training jobs", "It trains models in SQL", "It encrypts data", "It replaces Feature Store"], a: 0, why: "Fast parallel reads avoid slow exports." },
+  { q: "A data science team leaves GPU notebooks running over weekends. What's the simplest control?", opts: ["Ask people to remember", "Delete all notebooks weekly", "Move to TPUs", "Enable idle shutdown (Workbench) or admin runtime templates with idle limits"], a: 3, why: "Idle shutdown stops forgotten compute." },
+  { q: "Engineers need loss curves and a performance profile of a training job to diagnose a plateau. Which tool fits?", opts: ["Model Registry", "Sensitive Data Protection", "Agent Platform TensorBoard", "Cloud Billing reports"], a: 2, why: "TensorBoard shows training curves and profiles." },
+  { q: "Training in one region reads from a bucket in another, and it's slow with egress charges. What should you do (if residency allows)?", opts: ["Add more workers", "Co-locate the data and training in the same region", "Compress the model", "Use a public IP"], a: 1, why: "Cross-region reads add latency and cost." }
+];
+
+const scenarios = [
+  {"t": "Daily BigQuery export to CSV, notebook training, manual upload", "diag": "Map each manual step and where it can fail.", "cause": "MLOps level 0: manual, unrepeatable, no lineage.", "fix": "Train with BigQuery ML or a pipeline reading BigQuery directly; schedule it; register and deploy from the pipeline."},
+  {"t": "Data scientists can query raw PII columns in the training dataset", "diag": "Review IAM and column policies.", "cause": "No column-level security or de-identification.", "fix": "Sensitive Data Protection de-identification, policy tags with masking, least-privilege access."},
+  {"t": "Training data pulled with a plain join includes future feature values", "diag": "Compare feature timestamps with label timestamps.", "cause": "No point-in-time lookup.", "fix": "Feature Store offline serving (point-in-time joins) or SQL that filters features to before each label."},
+  {"t": "Online feature values differ from those used in training", "diag": "Compare feature definitions in both paths.", "cause": "Two codebases compute the same feature.", "fix": "Define once in Feature Store (BigQuery source) and serve online from feature views."},
+  {"t": "A notebook with an API key in a cell was shared widely", "diag": "Search notebooks and history for secrets.", "cause": "Secrets in code.", "fix": "Rotate the key, move it to Secret Manager, use service accounts; scan repos for secrets."},
+  {"t": "GPU utilization is low because the job reads 4 million small files", "diag": "Profile input pipeline.", "cause": "Per-file overhead on object storage.", "fix": "Shard into TFRecord/Parquet files, prefetch, parallel reads."},
+  {"t": "Team can't tell which of 40 runs produced the shipped model", "diag": "Check whether runs were logged.", "cause": "Ad-hoc notebook training with no tracking.", "fix": "Log to Experiments, train via pipelines for lineage, register versions in Model Registry."},
+  {"t": "Training job in us-central1 reads data from a bucket in europe-west4 and is slow and costly", "diag": "Compare data and compute regions.", "cause": "Cross-region reads.", "fix": "Co-locate data and compute (subject to residency rules)."},
+  {"t": "Dropping the name column was called 'anonymized', but records can be re-identified", "diag": "Look for quasi-identifiers and free text.", "cause": "ZIP, birth date and gender combinations plus PII in notes.", "fix": "Sensitive Data Protection inspection and transformation; generalize quasi-identifiers; k-anonymity checks."}
+];
+
+const cheat = [
+  ["Managed Service for Apache Airflow", "2026 name for Cloud Composer; gcloud composer still works"],
+  ["Sensitive Data Protection", "Formerly Cloud DLP: discover, classify and de-identify PII"],
+  ["Dataflow", "Apache Beam batch and streaming processing"],
+  ["Dataproc / Serverless Spark", "Managed Spark and Hadoop"],
+  ["BigQuery Storage Read API", "Fast parallel reads from BigQuery into training code"],
+  ["Cloud Storage FUSE (/gcs/)", "Buckets mounted as files in training jobs"],
+  ["TFRecord", "Sharded binary format for fast sequential training input"],
+  ["Feature Store (Agent Platform)", "BigQuery-backed features; online store for serving"],
+  ["Feature view / online store", "Features synced for low-latency serving"],
+  ["Point-in-time lookup", "Feature values as of each label's timestamp; avoids leakage"],
+  ["CMEK", "Customer-managed encryption keys"],
+  ["VPC Service Controls", "Perimeter that prevents data exfiltration"],
+  ["Workbench instance", "Configurable JupyterLab VM"],
+  ["Colab Enterprise", "Managed Colab notebooks with runtime templates"],
+  ["Idle shutdown", "Stop notebook VMs when unused"],
+  ["Experiments", "Log and compare runs' params, metrics, artifacts"],
+  ["Agent Platform TensorBoard", "Managed TensorBoard for training curves and profiles"],
+  ["ML Metadata", "Lineage of artifacts, executions and contexts"],
+  ["Model Registry: version, alias", "Model versions; aliases like default or champion"],
+  ["Policy tags", "BigQuery column-level security"],
+  ["Dynamic data masking", "Masked column values per user group"],
+  ["Row-level security", "Filter rows per user group"],
+  ["TFDV", "Schema inference, statistics, anomaly and skew detection"],
+  ["Dataplex Universal Catalog", "Data quality, profiling, discovery, lineage"],
+  ["Secret Manager", "Store keys and passwords outside code"],
+  ["Private Google Access", "Reach Google APIs without public IPs"],
+  ["Runtime templates", "Admin-defined Colab Enterprise runtimes"],
+  ["Managed datasets", "Agent Platform datasets for AutoML and labelled data"],
+  ["Quasi-identifiers", "Fields that identify people in combination"],
+  ["Tokenization / format-preserving encryption", "Reversible de-identification"],
+  ["Active learning", "Label the most informative examples first"]
+];
+
+const cards = [
+  ["Point-in-time correctness", "Feature values as of the label time"],
+  ["PII in free text", "Sensitive Data Protection"],
+  ["Stop exfiltration from projects", "VPC Service Controls"],
+  ["Where does lineage live?", "ML Metadata"],
+  ["Streaming and batch with one codebase", "Dataflow"],
+  ["Existing Spark jobs", "Dataproc / Serverless Spark"],
+  ["Same features in training and serving", "Feature Store"],
+  ["Feature Store offline storage", "BigQuery"],
+  ["Mask a column for some users", "Policy tags + dynamic masking"],
+  ["Control encryption keys", "CMEK"],
+  ["Secrets in notebooks", "Secret Manager instead"],
+  ["Collaborative managed notebooks", "Colab Enterprise"],
+  ["Customizable notebook VM", "Workbench instance"],
+  ["Compare runs' parameters and metrics", "Experiments"],
+  ["Loss curves and profiling", "Agent Platform TensorBoard"],
+  ["Many tiny training files", "Shard into TFRecord/Parquet"],
+  ["Is dropping the name column enough?", "No: quasi-identifiers and free text"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+</script>
+</body>
+</html>

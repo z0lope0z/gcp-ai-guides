@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML Fundamentals: Bias-Variance, Regularization and Evaluation Metrics</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Fundamentals · 2.3, 3.2</span></div>
+<h1>ML fundamentals 2: bias-variance, regularization and evaluation metrics</h1>
+<p class="subtitle">The model half of ML fundamentals: underfitting vs overfitting, learning curves, regularization and ensembles, training-loop problems, validation strategies, and evaluation metrics in depth, including why PR AUC beats ROC AUC on imbalanced data, threshold selection, calibration, and regression and ranking metrics. Two calculators make the numbers concrete.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#biasvar">Bias, variance and generalization</a></li>
+    <li><a href="#curves">Diagnosing with learning curves</a></li>
+    <li><a href="#regularization">Regularization and capacity control</a></li>
+    <li><a href="#training">Training-loop problems</a></li>
+    <li><a href="#validation">Validation strategies</a></li>
+    <li><a href="#classmetrics">Classification metrics</a></li>
+    <li><a href="#rocpr">ROC AUC vs PR AUC: why imbalance changes the answer</a></li>
+    <li><a href="#prcalc">Prevalence calculator: ROC point to precision</a></li>
+    <li><a href="#threshold">Choosing the threshold</a></li>
+    <li><a href="#metricscalc">Confusion-matrix calculator</a></li>
+    <li><a href="#calibration">Calibration</a></li>
+    <li><a href="#regression">Regression and forecasting metrics</a></li>
+    <li><a href="#ranking">Ranking, recommendation and business metrics</a></li>
+    <li><a href="#chooser">"What does this training curve mean?" chooser</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (24 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="biasvar">1. Bias, variance and generalization</h2>
+<p>A model's job is to <strong>generalize</strong>: do well on data it hasn't seen. Its error on new data comes from three sources:</p>
+<table>
+  <tr><th>Source</th><th>Meaning</th><th>Symptom</th></tr>
+  <tr><td><strong>Bias</strong></td><td>The model is too simple, or its assumptions are wrong, so it misses real patterns</td><td><strong>Underfitting</strong>: high error on training <em>and</em> validation data</td></tr>
+  <tr><td><strong>Variance</strong></td><td>The model is too sensitive to the particular training sample; it learns noise</td><td><strong>Overfitting</strong>: low training error, much higher validation error</td></tr>
+  <tr><td>Irreducible error</td><td>Noise in the labels or missing information no model can recover</td><td>A floor that more modelling can't break</td></tr>
+</table>
+<p>Making a model more flexible usually lowers bias and raises variance; constraining it does the reverse. The goal is the capacity where validation error is lowest.</p>
+<div class="analogy">A student who memorizes past exam answers (high variance) aces practice papers and fails new questions. A student who learned only one rule of thumb (high bias) does badly on both. You want the one who learned the underlying ideas.</div>
+
+<!-- ============================================================ -->
+<h2 id="curves">2. Diagnosing with learning curves</h2>
+<table>
+  <tr><th>What you see</th><th>Diagnosis</th><th>Try</th></tr>
+  <tr><td>Training and validation error both high, close together</td><td>High bias (underfitting)</td><td>A bigger or more flexible model, better features, less regularization, train longer</td></tr>
+  <tr><td>Training error low, validation error much higher</td><td>High variance (overfitting)</td><td>More data, augmentation, regularization (L2, dropout), early stopping, simpler model, fewer features</td></tr>
+  <tr><td>Validation loss falls, then rises while training loss keeps falling</td><td>Overfitting starts at the minimum</td><td><strong>Early stopping</strong> at the best validation epoch; restore those weights</td></tr>
+  <tr><td>Gap closes as training data grows, validation still improving</td><td>More data will help</td><td>Collect or label more data</td></tr>
+  <tr><td>Both curves flat as data grows, error still high</td><td>More data won't help</td><td>Change the model or features</td></tr>
+  <tr><td>Validation better than training</td><td>Regularization active only in training (dropout), easier validation set, or leakage</td><td>Check the split and leakage before celebrating</td></tr>
+  <tr><td>Loss jumps around or diverges</td><td>Learning rate too high, bad data, exploding gradients</td><td>Lower the learning rate, clip gradients, check inputs</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="regularization">3. Regularization and capacity control</h2>
+<table>
+  <tr><th>Technique</th><th>How it reduces overfitting</th><th>Notes</th></tr>
+  <tr><td><strong>L2 (ridge, weight decay)</strong></td><td>Penalizes large weights (sum of squares); spreads weight across features</td><td>Default choice; BigQuery ML <code>l2_reg</code></td></tr>
+  <tr><td><strong>L1 (lasso)</strong></td><td>Penalizes absolute weights; drives some to exactly zero</td><td>Sparse models and feature selection; <code>l1_reg</code></td></tr>
+  <tr><td>Elastic net</td><td>L1 + L2</td><td>Correlated features plus sparsity</td></tr>
+  <tr><td><strong>Dropout</strong></td><td>Randomly zeroes neurons during training</td><td>Neural networks; inactive at inference</td></tr>
+  <tr><td><strong>Early stopping</strong></td><td>Stops when validation loss stops improving</td><td>Cheap and effective; BigQuery ML <code>early_stop</code></td></tr>
+  <tr><td>Data augmentation</td><td>Adds realistic variations</td><td>Images, audio, text</td></tr>
+  <tr><td>Simpler model</td><td>Fewer layers, shallower trees (<code>max_tree_depth</code>), fewer features</td><td>Also cheaper to serve</td></tr>
+  <tr><td>Tree constraints</td><td>Minimum samples per leaf, subsampling rows and columns, learning rate (shrinkage)</td><td>Gradient boosting's main controls</td></tr>
+  <tr><td>Batch normalization</td><td>Stabilizes training; mild regularizing effect</td><td>Mainly an optimization aid</td></tr>
+</table>
+<h3>Ensembles</h3>
+<table>
+  <tr><th>Method</th><th>Idea</th><th>Mainly reduces</th></tr>
+  <tr><td><strong>Bagging</strong> (random forest)</td><td>Average many models trained on bootstrap samples</td><td>Variance</td></tr>
+  <tr><td><strong>Boosting</strong> (XGBoost, gradient-boosted trees)</td><td>Each new model fixes the previous ones' errors</td><td>Bias (and variance with shrinkage and subsampling)</td></tr>
+  <tr><td>Stacking</td><td>A meta-model combines different models</td><td>Both; more complexity</td></tr>
+</table>
+<div class="mn"><strong>"Bagging calms variance, boosting beats bias."</strong></div>
+
+<!-- ============================================================ -->
+<h2 id="training">4. Training-loop problems</h2>
+<table>
+  <tr><th>Problem</th><th>Sign</th><th>Fix</th></tr>
+  <tr><td>Learning rate too high</td><td>Loss oscillates, explodes or becomes NaN</td><td>Lower it; learning-rate schedules and warmup</td></tr>
+  <tr><td>Learning rate too low</td><td>Loss falls very slowly</td><td>Raise it; adaptive optimizers (Adam)</td></tr>
+  <tr><td>Vanishing gradients</td><td>Early layers stop learning in deep networks</td><td>ReLU-family activations, residual connections, batch norm, good initialization</td></tr>
+  <tr><td>Exploding gradients</td><td>Huge updates, NaN loss (common in RNNs)</td><td>Gradient clipping, lower learning rate, normalization</td></tr>
+  <tr><td>Dead ReLUs</td><td>Many neurons always output zero</td><td>Leaky ReLU, lower learning rate</td></tr>
+  <tr><td>NaN loss</td><td>Bad inputs (NaN, inf), log(0), division by zero</td><td>Validate data, add epsilons, clip</td></tr>
+  <tr><td>Batch size effects</td><td>Large batches: faster per epoch, may generalize worse; small: noisier, slower</td><td>Scale the learning rate with batch size; tune both</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="validation">5. Validation strategies</h2>
+<table>
+  <tr><th>Strategy</th><th>Use when</th></tr>
+  <tr><td>Hold-out validation</td><td>Plenty of data; fast</td></tr>
+  <tr><td><strong>k-fold cross-validation</strong></td><td>Small or medium data; more reliable estimates (train k times, each fold validates once)</td></tr>
+  <tr><td>Stratified k-fold</td><td>Classification, especially imbalanced</td></tr>
+  <tr><td>Group k-fold</td><td>Many rows per entity</td></tr>
+  <tr><td><strong>Time-series (rolling or expanding window) validation</strong></td><td>Forecasting; never shuffle; also called backtesting</td></tr>
+  <tr><td>Nested cross-validation</td><td>Unbiased estimate when also tuning hyperparameters</td></tr>
+</table>
+<div class="warn">Every choice made by looking at a dataset (features, hyperparameters, thresholds) "uses up" that dataset. Make those choices on validation data; report the final number on untouched test data.</div>
+
+<!-- ============================================================ -->
+<h2 id="classmetrics">6. Classification metrics</h2>
+<table>
+  <tr><th></th><th>Predicted positive</th><th>Predicted negative</th></tr>
+  <tr><td><strong>Actually positive</strong></td><td>True positive (TP)</td><td>False negative (FN), a miss</td></tr>
+  <tr><td><strong>Actually negative</strong></td><td>False positive (FP), a false alarm</td><td>True negative (TN)</td></tr>
+</table>
+<table>
+  <tr><th>Metric</th><th>Formula</th><th>Answers</th><th>Prefer when</th></tr>
+  <tr><td><strong>Precision</strong></td><td>TP / (TP + FP)</td><td>When it says positive, how often is it right?</td><td>False positives are costly: blocking good customers, spam filtering real mail</td></tr>
+  <tr><td><strong>Recall</strong> (sensitivity, true positive rate)</td><td>TP / (TP + FN)</td><td>Of all real positives, how many did it find?</td><td>Misses are costly: fraud, disease screening, safety defects</td></tr>
+  <tr><td>Specificity</td><td>TN / (TN + FP)</td><td>Of real negatives, how many were cleared?</td><td>Medical testing pairs it with sensitivity</td></tr>
+  <tr><td>False positive rate (FPR)</td><td>FP / (FP + TN) = 1 − specificity</td><td>How often negatives are flagged</td><td>The x-axis of the ROC curve</td></tr>
+  <tr><td><strong>F1</strong></td><td>2PR / (P + R)</td><td>Balance of precision and recall</td><td>One number when both matter; F-beta weights recall β times as much</td></tr>
+  <tr><td>Accuracy</td><td>(TP + TN) / all</td><td>Fraction correct</td><td>Only for roughly balanced classes with similar error costs</td></tr>
+  <tr><td>Log loss (cross-entropy)</td><td>−mean(y·log p + (1−y)·log(1−p))</td><td>How good the probabilities are</td><td>Probabilities are used directly; punishes confident mistakes</td></tr>
+</table>
+<h3>Multi-class averaging</h3>
+<ul>
+  <li><strong>Macro</strong> average: mean of per-class metrics; every class counts equally (good when rare classes matter).</li>
+  <li><strong>Micro</strong> average: pool all decisions; dominated by frequent classes (equals accuracy for single-label problems).</li>
+  <li><strong>Weighted</strong> average: per-class metrics weighted by class frequency.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="rocpr">7. ROC AUC vs PR AUC: why imbalance changes the answer</h2>
+<p>Both curves sweep the decision threshold from high to low.</p>
+<ul>
+  <li><strong>ROC curve</strong>: true positive rate (recall) against false positive rate. <strong>ROC AUC</strong> is the probability that a random positive is scored above a random negative. 0.5 is random; 1.0 is perfect.</li>
+  <li><strong>PR curve</strong>: precision against recall. <strong>PR AUC</strong> (average precision) is the area under it. A random model scores about the <strong>positive rate</strong> (0.01 at 1% positives), not 0.5.</li>
+</ul>
+<h3>Worked example</h3>
+<p>1,000,000 transactions, 1% fraud (10,000 positives). A model at some threshold has recall 80% and FPR 1%.</p>
+<table>
+  <tr><th>Quantity</th><th>Value</th></tr>
+  <tr><td>True positives</td><td>0.80 × 10,000 = 8,000</td></tr>
+  <tr><td>False positives</td><td>0.01 × 990,000 = 9,900</td></tr>
+  <tr><td>Precision</td><td>8,000 / 17,900 ≈ <strong>45%</strong></td></tr>
+</table>
+<p>On the ROC curve, (FPR 1%, TPR 80%) looks excellent. But <strong>more than half the alerts are false</strong>. If fraud were 0.1%, the same TPR and FPR would give precision ≈ 7%. ROC doesn't move when prevalence changes, because both of its rates are computed within one class each; precision mixes the two classes, so PR curves show what an analyst reviewing alerts experiences.</p>
+<div class="key"><strong>Imbalanced data: use PR AUC</strong> (and precision at a required recall, or recall at a required precision). ROC AUC is fine for balanced classes and for comparing ranking quality, but on rare-event problems it can look great while the model is unusable.</div>
+<div class="warn">PR AUC values aren't comparable across datasets with different positive rates; the baseline moves with prevalence. Compare models on the same test set.</div>
+
+<!-- ============================================================ -->
+<h2 id="prcalc">8. Prevalence calculator: ROC point to precision</h2>
+<p>Pick a recall (true positive rate) and false positive rate, then change the positive rate to see what precision users would actually experience.</p>
+<div class="card">
+  <div class="tool">
+    <label>Recall / true positive rate (%)<br><input id="pR" type="number" min="0" max="100" value="80"></label>
+    <label>False positive rate (%)<br><input id="pF" type="number" min="0" max="100" step="0.1" value="1"></label>
+    <label>Positive rate in production (%)<br><input id="pP" type="number" min="0.001" max="100" step="0.01" value="1"></label>
+    <label>Predictions per day<br><input id="pN" type="number" min="1" value="1000000"></label>
+  </div>
+  <div class="outbox" id="pOut"></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="threshold">9. Choosing the threshold</h2>
+<p>Models output scores; a <strong>threshold</strong> turns scores into decisions. The default 0.5 is arbitrary. Choose the threshold on validation data from what each error costs.</p>
+<ol>
+  <li>Price each error: a missed fraud costs the transaction amount; a false alarm costs review time and customer friction.</li>
+  <li>For each candidate threshold, compute expected cost = FN × cost<sub>FN</sub> + FP × cost<sub>FP</sub>.</li>
+  <li>Pick the minimum, or the threshold that meets a hard constraint (recall ≥ 95%, or at most 500 alerts per day for the review team).</li>
+</ol>
+<ul>
+  <li>Raising the threshold: fewer positives, usually higher precision and lower recall.</li>
+  <li>BigQuery ML: <code>ML.ROC_CURVE</code> and <code>ML.CONFUSION_MATRIX(MODEL m, (SELECT ...), STRUCT(0.3 AS threshold))</code>; predictions accept a threshold too.</li>
+  <li>Thresholds can differ per segment only if policy and fairness review allow it.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="metricscalc">10. Confusion-matrix calculator</h2>
+<p>Enter counts at your current threshold to get every metric and which way to move the threshold.</p>
+<div class="card">
+  <div class="tool">
+    <label>True positives (TP)<br><input id="mTP" type="number" min="0" value="80"></label>
+    <label>False positives (FP)<br><input id="mFP" type="number" min="0" value="40"></label>
+    <label>False negatives (FN)<br><input id="mFN" type="number" min="0" value="20"></label>
+    <label>True negatives (TN)<br><input id="mTN" type="number" min="0" value="9860"></label>
+    <label>Cost of a miss (FN)<br><input id="mCN" type="number" min="0" value="500"></label>
+    <label>Cost of a false alarm (FP)<br><input id="mCP" type="number" min="0" value="20"></label>
+  </div>
+  <div class="outbox" id="mOut"></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="calibration">11. Calibration</h2>
+<p>A model is <strong>calibrated</strong> if, among cases it scores 0.8, about 80% are positive. Ranking (AUC) can be excellent while probabilities are badly off.</p>
+<table>
+  <tr><th>Topic</th><th>Detail</th></tr>
+  <tr><td>Why it matters</td><td>Expected-cost decisions, risk scores shown to people, combining models, pricing</td></tr>
+  <tr><td>What breaks it</td><td>Class weights, resampling, boosting, overconfident neural networks, distribution shift</td></tr>
+  <tr><td>How to check</td><td>Reliability diagram (predicted vs observed rate per bin), Brier score, log loss</td></tr>
+  <tr><td>How to fix</td><td><strong>Platt scaling</strong> (logistic fit on scores), <strong>isotonic regression</strong> (more flexible, needs more data), temperature scaling for neural networks; fit on validation data</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="regression">12. Regression and forecasting metrics</h2>
+<table>
+  <tr><th>Metric</th><th>Meaning</th><th>Prefer when</th></tr>
+  <tr><td><strong>MAE</strong> (mean absolute error)</td><td>Average absolute miss, in the target's units</td><td>Robust to outliers; easy to explain</td></tr>
+  <tr><td><strong>RMSE</strong> (root mean squared error)</td><td>Squares errors, so large misses count much more</td><td>Big errors are disproportionately bad</td></tr>
+  <tr><td>MSE</td><td>RMSE squared; common training loss</td><td>Optimization</td></tr>
+  <tr><td>Huber loss</td><td>Squared for small errors, absolute for large</td><td>Training with some outliers</td></tr>
+  <tr><td><strong>R²</strong></td><td>Share of variance explained (1 is perfect, 0 equals predicting the mean)</td><td>Comparing to a mean baseline</td></tr>
+  <tr><td><strong>MAPE</strong></td><td>Mean absolute percentage error</td><td>Scale-free comparison; breaks near zero actuals, penalizes over-forecasts more</td></tr>
+  <tr><td>WAPE / sMAPE</td><td>Weighted or symmetric percentage errors</td><td>Forecasting with intermittent or near-zero demand</td></tr>
+  <tr><td>RMSLE</td><td>RMSE on log values</td><td>Relative errors matter; under-prediction worse than over</td></tr>
+  <tr><td>Quantile (pinball) loss, interval coverage</td><td>Quality of prediction intervals</td><td>Inventory and capacity planning</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ranking">13. Ranking, recommendation and business metrics</h2>
+<table>
+  <tr><th>Metric</th><th>Meaning</th></tr>
+  <tr><td>Precision@k, recall@k</td><td>Quality of the top k results</td></tr>
+  <tr><td>MAP (mean average precision)</td><td>Rewards putting relevant items early, averaged over queries</td></tr>
+  <tr><td><strong>NDCG</strong> (normalized discounted cumulative gain)</td><td>Graded relevance with a position discount</td></tr>
+  <tr><td>MRR (mean reciprocal rank)</td><td>1 / rank of the first relevant result</td></tr>
+  <tr><td>Coverage, diversity, novelty</td><td>Whether recommendations go beyond the popular few</td></tr>
+  <tr><td>Online metrics</td><td>Click-through rate, conversion, revenue per session, retention: measured by A/B tests</td></tr>
+</table>
+<div class="key">Offline metrics choose candidates; <strong>online experiments</strong> decide launches. A model can improve NDCG offline and still lose an A/B test on revenue.</div>
+
+<!-- ============================================================ -->
+<h2 id="chooser">14. "What does this training curve mean?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">15. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">16. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. overfit, L1, dropout, PR AUC, calibration, RMSE…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">17. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">18. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Both errors high = bias; big gap = variance.</strong> The fixes are opposite.</li>
+<li><strong>More data fixes variance, not bias.</strong></li>
+<li><strong>Regularization and early stopping fight overfitting</strong>; they make underfitting worse.</li>
+<li><strong>PR AUC for imbalanced data.</strong> ROC AUC ignores prevalence and can look great while precision is terrible.</li>
+<li><strong>PR AUC's random baseline is the positive rate</strong>, not 0.5.</li>
+<li><strong>Never keep the 0.5 threshold by default</strong>; pick it from error costs on validation data.</li>
+<li><strong>Precision when false positives hurt, recall when misses hurt.</strong></li>
+<li><strong>Class weights and resampling break calibration</strong>; recalibrate before using probabilities.</li>
+<li><strong>Tuning on the test set makes the test score optimistic.</strong></li>
+<li><strong>Time series: no shuffling</strong>; backtest with rolling windows.</li>
+<li><strong>RMSE punishes big misses; MAE is robust; MAPE breaks near zero.</strong></li>
+<li><strong>Macro averages expose rare-class failure</strong> that accuracy hides.</li>
+<li><strong>Offline metrics pick candidates; A/B tests decide launches.</strong></li>
+<li><strong>Validation better than training</strong>: check dropout effects and leakage before celebrating.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">19. Practice quiz (24 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="ml-data-features-imbalance.html">← ML fundamentals 1: data, features, imbalance</a><a href="bigquery-ml-automl-apis.html">Next: BigQuery ML, AutoML and AI APIs →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Training and validation error both high", "Underfitting (high bias)", "The model can't capture the pattern even on data it has seen.", "Adding regularization"],
+  ["Training error low, validation much higher", "Overfitting (high variance)", "It memorized the training set.", "Making the model bigger"],
+  ["Validation loss falls, then rises", "Overfitting begins at the minimum", "Further training fits noise.", "Training for more epochs"],
+  ["Gap shrinks as training data grows", "More data will help", "Variance falls with more examples.", "Changing architecture first"],
+  ["Curves flat with more data, error still high", "More data won't help", "The model or features are the limit.", "Collecting more of the same data"],
+  ["Loss explodes to NaN early", "Learning rate too high or bad inputs", "Updates overshoot or invalid values propagate.", "Adding layers"],
+  ["Loss decreases extremely slowly", "Learning rate too low", "Tiny steps.", "Early stopping"],
+  ["Validation better than training", "Dropout or augmentation only in training, or leakage", "Training is made harder on purpose, or validation is contaminated.", "Assuming the model is perfect"],
+  ["Deep network's early layers don't learn", "Vanishing gradients", "Gradients shrink through many layers.", "Sigmoid activations everywhere"],
+  ["Rare-event classifier: which summary metric?", "PR AUC", "Focuses on the rare class; baseline equals the positive rate.", "ROC AUC alone or accuracy"],
+  ["Scores used as probabilities after class weighting", "Recalibrate (Platt or isotonic)", "Weighting distorts probabilities.", "Using raw scores"],
+  ["Forecast where big misses are very costly", "RMSE", "Squares errors.", "MAE"],
+  ["Forecast with many zero-demand days", "WAPE (or MAE), not MAPE", "MAPE divides by actuals near zero.", "MAPE"],
+  ["Small dataset, reliable estimate needed", "k-fold cross-validation", "Every row validates once.", "A single small hold-out"],
+];
+
+const scenarios = [
+  { t: "Deep model: 99% training accuracy, 71% validation", diag: "Plot training and validation loss per epoch.", cause: "Overfitting (high variance).", fix: "Regularize (dropout, L2), augment, early stopping, more data or a smaller model." },
+  { t: "Linear model: 62% on both training and validation", diag: "Compare with a more flexible model and check features.", cause: "Underfitting (high bias).", fix: "Add features or crosses, use trees or a neural network, reduce regularization." },
+  { t: "Fraud model has ROC AUC 0.96, but analysts say most alerts are false", diag: "Compute precision at the operating threshold and the PR curve.", cause: "ROC hides low precision at a 0.2% positive rate.", fix: "Evaluate with PR AUC; raise the threshold or improve the model until precision meets the review budget." },
+  { t: "Threshold left at 0.5 for a cancer screening model", diag: "Compare the costs of misses and false alarms.", cause: "Default threshold ignores that misses are far worse.", fix: "Lower the threshold to reach the required recall on validation data; report precision at that recall." },
+  { t: "Model's 0.9 scores are positive only 60% of the time", diag: "Reliability diagram on validation data.", cause: "Miscalibration (class weights, boosting or overconfidence).", fix: "Platt scaling or isotonic regression fitted on validation data." },
+  { t: "Loss becomes NaN after a few hundred steps", diag: "Check inputs for NaN/inf and the learning rate.", cause: "Exploding gradients or invalid data.", fix: "Lower learning rate, gradient clipping, validate and clean inputs." },
+  { t: "A model with better offline NDCG lost the A/B test", diag: "Compare offline metric with the online business metric.", cause: "Offline proxy doesn't capture what users value (diversity, freshness).", fix: "Decide launches online; add the missing factors to offline evaluation." },
+  { t: "Hyperparameters tuned on the test set report 0.93; production gives 0.86", diag: "Check which data guided each choice.", cause: "Test set used for tuning, so its score is optimistic.", fix: "Tune on validation (or cross-validation); keep a clean test set." },
+  { t: "Forecast MAPE looks terrible for slow-moving products", diag: "Look at actuals near zero.", cause: "MAPE explodes when actuals are tiny.", fix: "Use WAPE, MAE or sMAPE for intermittent demand." },
+  { t: "Macro F1 is low while accuracy is high in a 10-class problem", diag: "Per-class precision and recall.", cause: "Rare classes are poorly predicted; accuracy is dominated by common classes.", fix: "Class weights, more data for rare classes, report macro metrics." },
+];
+
+const cheat = [
+  ["Bias", "Error from a too-simple model: underfitting"],
+  ["Variance", "Error from sensitivity to the training sample: overfitting"],
+  ["Irreducible error", "Noise no model can remove"],
+  ["Learning curve", "Error vs epochs or training-set size, for training and validation"],
+  ["Early stopping", "Stop at the best validation loss; BigQuery ML early_stop"],
+  ["L2 / weight decay", "Penalizes squared weights; l2_reg"],
+  ["L1 / lasso", "Penalizes absolute weights; sparsity; l1_reg"],
+  ["Elastic net", "L1 + L2"],
+  ["Dropout", "Randomly zero neurons in training"],
+  ["Data augmentation", "Realistic synthetic variations"],
+  ["Bagging", "Average bootstrap models; reduces variance"],
+  ["Boosting", "Sequential error-correcting models; reduces bias"],
+  ["Stacking", "Meta-model over base models"],
+  ["Learning rate", "Step size; too high diverges, too low crawls"],
+  ["Vanishing gradients", "Early layers stop learning; ReLU, residuals, batch norm"],
+  ["Exploding gradients", "Huge updates; gradient clipping"],
+  ["k-fold cross-validation", "Rotate validation over k folds"],
+  ["Time-series CV / backtesting", "Rolling or expanding windows; no shuffling"],
+  ["Nested CV", "Outer loop evaluates, inner loop tunes"],
+  ["Confusion matrix", "TP, FP, FN, TN"],
+  ["Precision", "TP / (TP + FP)"],
+  ["Recall / TPR / sensitivity", "TP / (TP + FN)"],
+  ["Specificity", "TN / (TN + FP)"],
+  ["FPR", "FP / (FP + TN)"],
+  ["F1", "2PR / (P + R)"],
+  ["F-beta", "Weights recall β times precision"],
+  ["Log loss", "Penalizes confident wrong probabilities"],
+  ["Macro / micro / weighted average", "Equal per class / pooled / by frequency"],
+  ["ROC curve", "TPR vs FPR across thresholds"],
+  ["ROC AUC", "P(random positive scored above random negative); 0.5 random"],
+  ["PR curve", "Precision vs recall across thresholds"],
+  ["PR AUC / average precision", "Area under PR; random baseline = positive rate"],
+  ["Prevalence", "Positive rate; drives precision, not ROC"],
+  ["Threshold", "Score cutoff for a positive decision"],
+  ["Expected cost", "FN × cost_FN + FP × cost_FP"],
+  ["ML.ROC_CURVE / ML.CONFUSION_MATRIX", "BigQuery ML threshold analysis"],
+  ["Calibration", "Predicted probabilities match observed rates"],
+  ["Reliability diagram", "Predicted vs observed by bin"],
+  ["Brier score", "Mean squared error of probabilities"],
+  ["Platt scaling", "Logistic calibration on scores"],
+  ["Isotonic regression", "Monotonic, flexible calibration"],
+  ["MAE", "Mean absolute error; robust to outliers"],
+  ["RMSE", "Root mean squared error; punishes big misses"],
+  ["Huber loss", "Squared small errors, absolute large"],
+  ["R²", "Variance explained vs predicting the mean"],
+  ["MAPE", "Percentage error; fails near zero"],
+  ["WAPE / sMAPE", "Weighted / symmetric percentage errors"],
+  ["RMSLE", "RMSE on logs; relative errors"],
+  ["Pinball loss", "Quantile forecast quality"],
+  ["NDCG", "Graded ranking quality with position discount"],
+  ["MAP / MRR", "Ranking: average precision / reciprocal rank of first hit"],
+  ["Precision@k", "Share of top k that are relevant"],
+];
+
+const cards = [
+  ["High train and validation error", "High bias: underfitting"],
+  ["Low train, high validation error", "High variance: overfitting"],
+  ["Fix overfitting (four ways)", "More data, regularization, early stopping, simpler model"],
+  ["Fix underfitting (three ways)", "Bigger model, better features, less regularization"],
+  ["Bagging reduces…", "Variance"],
+  ["Boosting reduces…", "Bias"],
+  ["L1 vs L2", "L1 zeroes weights; L2 shrinks them"],
+  ["NaN loss: first checks", "Learning rate, inputs, log(0)"],
+  ["Precision", "TP / (TP + FP)"],
+  ["Recall", "TP / (TP + FN)"],
+  ["FPR", "FP / (FP + TN)"],
+  ["ROC AUC random baseline", "0.5"],
+  ["PR AUC random baseline", "The positive rate"],
+  ["Does ROC change with prevalence?", "No; precision does"],
+  ["Imbalanced data summary metric", "PR AUC"],
+  ["Misses are costly", "Optimize recall; lower threshold"],
+  ["False alarms are costly", "Optimize precision; raise threshold"],
+  ["Calibration fixes", "Platt scaling, isotonic regression"],
+  ["What breaks calibration", "Class weights, resampling, boosting"],
+  ["RMSE vs MAE", "RMSE punishes big errors more"],
+  ["MAPE fails when…", "Actuals are near zero"],
+  ["Macro averaging", "Every class counts equally"],
+  ["Ranking with graded relevance", "NDCG"],
+  ["Who decides launches?", "Online A/B tests"],
+  ["Tune hyperparameters on…", "Validation or cross-validation"],
+  ["Forecast validation", "Backtesting with rolling windows"],
+];
+
+const traps = [
+  "<strong>Both errors high = bias; big gap = variance.</strong> The fixes are opposite.",
+  "<strong>More data fixes variance, not bias.</strong>",
+  "<strong>Regularization and early stopping fight overfitting</strong>; they make underfitting worse.",
+  "<strong>PR AUC for imbalanced data.</strong> ROC AUC ignores prevalence and can look great while precision is terrible.",
+  "<strong>PR AUC's random baseline is the positive rate</strong>, not 0.5.",
+  "<strong>Never keep the 0.5 threshold by default</strong>; pick it from error costs on validation data.",
+  "<strong>Precision when false positives hurt, recall when misses hurt.</strong>",
+  "<strong>Class weights and resampling break calibration</strong>; recalibrate before using probabilities.",
+  "<strong>Tuning on the test set makes the test score optimistic.</strong>",
+  "<strong>Time series: no shuffling</strong>; backtest with rolling windows.",
+  "<strong>RMSE punishes big misses; MAE is robust; MAPE breaks near zero.</strong>",
+  "<strong>Macro averages expose rare-class failure</strong> that accuracy hides.",
+  "<strong>Offline metrics pick candidates; A/B tests decide launches.</strong>",
+  "<strong>Validation better than training</strong>: check dropout effects and leakage before celebrating.",
+];
+
+const questions = [
+  { q: "A model has 98% training accuracy and 74% validation accuracy. What's the most likely problem and a sensible fix?", opts: ["Underfitting; use a bigger model", "Overfitting; add regularization or more data, or use early stopping", "Data leakage in training; remove features", "Learning rate too low; raise it"], a: 1, why: "A large gap between training and validation indicates high variance." },
+  { q: "Training and validation error are both high and nearly equal. What should you try first?", opts: ["More dropout", "Stronger L2 regularization", "Early stopping earlier", "A more flexible model or better features"], a: 3, why: "This is underfitting; regularization would make it worse." },
+  { q: "The learning curve shows the validation-training gap shrinking steadily as the training set grows. What does that suggest?", opts: ["Collecting more data is likely to improve validation performance", "The model has hit irreducible error", "The features are useless", "Lower the learning rate"], a: 0, why: "A closing gap with growing data means variance is falling." },
+  { q: "Which technique mainly reduces variance by averaging many models trained on bootstrap samples?", opts: ["Boosting", "L1 regularization", "Bagging (random forest)", "Batch normalization"], a: 2, why: "Bagging averages away sample-specific noise." },
+  { q: "Training loss turns into NaN shortly after starting. What's the first thing to check?", opts: ["The number of output classes", "The test set", "The learning rate and input data for NaN, infinity or log(0)", "The serving container"], a: 2, why: "Too-high learning rates and invalid inputs are the usual causes." },
+  { q: "At 1% positives, a model operates at TPR 80% and FPR 1%. Roughly what precision do users see?", opts: ["About 45%", "About 99%", "About 80%", "About 1%"], a: 0, why: "TP = 0.8 × 1% and FP = 1% × 99%, so precision ≈ 0.008 / (0.008 + 0.0099) ≈ 45%." },
+  { q: "Why is PR AUC usually preferred over ROC AUC for rare-event detection?", opts: ["ROC AUC can't be computed for binary problems", "PR AUC is always higher", "ROC AUC requires calibrated probabilities", "ROC uses the false positive rate over a huge negative class, so it can look strong while most positive predictions are wrong"], a: 3, why: "Precision reflects the cost of false alarms when positives are rare." },
+  { q: "What's the PR AUC of a random classifier when 2% of examples are positive?", opts: ["0.5", "About 0.02", "1.0", "0"], a: 1, why: "Random precision equals the positive rate at every recall." },
+  { q: "A disease screening test must miss as few cases as possible; follow-up tests are cheap. Which metric should drive the threshold?", opts: ["Recall (sensitivity)", "Precision", "Accuracy", "Specificity only"], a: 0, why: "When misses are costly and false alarms are cheap, maximize recall." },
+  { q: "A spam filter must almost never send real email to spam. Which metric matters most?", opts: ["Recall of the spam class", "R²", "Precision of the spam class", "MAPE"], a: 2, why: "False positives (real mail marked spam) are the costly error." },
+  { q: "Missed fraud costs $500 and a false alarm costs $20 in review time. How should the threshold be chosen?", opts: ["Keep 0.5", "Maximize accuracy", "Choose the threshold with equal precision and recall", "Minimize expected cost on validation data, which pushes the threshold lower than 0.5"], a: 3, why: "Expected cost = FN × 500 + FP × 20; misses are 25 times worse." },
+  { q: "A model trained with class weights outputs 0.7 for cases that are positive only 30% of the time. What should you do if the scores are shown to risk officers as probabilities?", opts: ["Retrain without validation data", "Calibrate with Platt scaling or isotonic regression on validation data", "Multiply scores by 0.5", "Switch to ROC AUC"], a: 1, why: "Calibration maps scores to observed frequencies; weighting distorts them." },
+  { q: "For house prices, large errors are much worse than small ones. Which metric fits?", opts: ["MAE", "Accuracy", "Recall", "RMSE"], a: 3, why: "RMSE squares errors, penalizing big misses heavily." },
+  { q: "A demand forecast covers products that often sell zero units per day. Which metric is a poor choice?", opts: ["MAPE", "MAE", "WAPE", "RMSE"], a: 0, why: "MAPE divides by actual values, which explodes near zero." },
+  { q: "In a 12-class problem where rare classes matter, which summary metric should you report?", opts: ["Micro-averaged accuracy", "Macro-averaged F1", "Overall accuracy", "Log loss only"], a: 1, why: "Macro averaging gives every class equal weight." },
+  { q: "How should you validate a weekly sales forecaster?", opts: ["Shuffled k-fold cross-validation", "A random hold-out", "Backtesting with rolling or expanding time windows", "Leave-one-out on random rows"], a: 2, why: "Time order must be respected." },
+  { q: "You tuned hyperparameters by checking the test score after each run. What's the consequence?", opts: ["The test score is optimistically biased; you need a fresh held-out set", "Nothing, as long as you report it", "The model underfits", "Training becomes slower"], a: 0, why: "Every decision made on a dataset leaks information into it." },
+  { q: "Which statement about L1 regularization is true?", opts: ["It only applies to decision trees", "It increases variance", "It's identical to dropout", "It can set weights exactly to zero, producing sparse models"], a: 3, why: "The absolute-value penalty drives small weights to zero." },
+  { q: "A recommender improved NDCG offline but reduced revenue in an A/B test. What's the right conclusion?", opts: ["Ship it anyway because NDCG is higher", "Re-run the A/B test until it wins", "Trust the online result; the offline metric doesn't capture what drives revenue", "Switch to accuracy"], a: 2, why: "Online experiments measure the real objective; offline metrics are proxies." },
+  { q: "Validation accuracy is consistently higher than training accuracy. Which is a plausible benign explanation?", opts: ["The model is underfitting severely", "Dropout or augmentation is applied during training only", "The learning rate is too low", "The test set is too small"], a: 1, why: "Training is deliberately harder with dropout; still check for leakage." },
+  { q: "Which loss is less sensitive to outliers than MSE while still smooth near zero?", opts: ["Log loss", "Hinge loss", "Huber loss", "Cross-entropy"], a: 2, why: "Huber is quadratic for small errors and linear for large ones." },
+  { q: "What does an ROC AUC of 0.5 mean?", opts: ["Perfect ranking", "The model ranks positives no better than random", "Half the predictions are positive", "The threshold is 0.5"], a: 1, why: "AUC is the probability a random positive outranks a random negative." },
+  { q: "In BigQuery ML, how do you see precision and recall at several thresholds to pick one?", opts: ["ML.ROC_CURVE, or ML.CONFUSION_MATRIX with a threshold", "ML.FORECAST", "ML.GENERATE_TEXT", "ML.DETECT_ANOMALIES"], a: 0, why: "Both functions expose threshold-dependent metrics." },
+  { q: "A deep network's first layers barely change during training. What's the likely cause and fix?", opts: ["Overfitting; add dropout", "Exploding gradients; raise the learning rate", "Too much data; downsample", "Vanishing gradients; use ReLU-family activations, residual connections or batch normalization"], a: 3, why: "Gradients shrink through many saturating layers." }
+];
+
+const samples = [];
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+function prev() {
+  const R = Math.min(100, num("pR", 80)) / 100, F = Math.min(100, num("pF", 1)) / 100, P = Math.min(100, Math.max(0.001, num("pP", 1))) / 100, N = Math.max(1, num("pN", 1));
+  const pos = N * P, neg = N - pos, tp = R * pos, fp = F * neg, prec = tp / (tp + fp);
+  const out = [];
+  out.push("<p>Of " + Math.round(N).toLocaleString("en-US") + " predictions, " + Math.round(pos).toLocaleString("en-US") + " are positive. The model flags <strong>" + Math.round(tp + fp).toLocaleString("en-US") + "</strong>: " + Math.round(tp).toLocaleString("en-US") + " real and " + Math.round(fp).toLocaleString("en-US") + " false alarms.</p>");
+  out.push("<p><strong>Precision " + pct(prec) + "</strong>: " + (prec < 0.5 ? "most alerts are false, even though the ROC point (TPR " + pct(R) + ", FPR " + pct(F) + ") looks strong." : "most alerts are real.") + "</p>");
+  const rows = [10, 1, 0.1, 0.01].map(p => { const ps = p / 100, t = R * ps, f = F * (1 - ps); return "<tr><td>" + p + "%</td><td>" + pct(t / (t + f)) + "</td></tr>"; }).join("");
+  out.push("<p>Same model, same ROC point, different positive rates:</p><table><tr><th>Positive rate</th><th>Precision</th></tr>" + rows + "</table>");
+  out.push("<p class=\"dim\">ROC uses rates within each class, so it ignores prevalence. Precision mixes both classes, so it falls as positives get rarer. That's why PR AUC is preferred for imbalanced problems.</p>");
+  $("pOut").innerHTML = out.join("");
+}
+function metrics() {
+  const tp = num("mTP", 0), fp = num("mFP", 0), fn = num("mFN", 0), tn = num("mTN", 0), cn = num("mCN", 0), cp = num("mCP", 0);
+  const n = tp + fp + fn + tn, prec = tp / (tp + fp), rec = tp / (tp + fn), spec = tn / (tn + fp);
+  const f1 = 2 * prec * rec / (prec + rec), acc = (tp + tn) / n, base = (tp + fn) / n;
+  const out = [];
+  out.push("<p><strong>Precision " + pct(prec) + "</strong> · <strong>Recall " + pct(rec) + "</strong> · <strong>F1 " + pct(f1) + "</strong> · Specificity " + pct(spec) + " · FPR " + pct(1 - spec) + " · Accuracy " + pct(acc) + "</p>");
+  if (n > 0 && base < 0.1) out.push("<p class=\"warn-inline\">Only " + pct(base) + " are positive: always predicting negative would score " + pct(1 - base) + " accuracy. Judge on precision, recall and PR AUC.</p>");
+  const cost = fn * cn + fp * cp;
+  out.push("<p>Expected error cost at this threshold: <strong>" + cost.toLocaleString("en-US") + "</strong> (" + fn + " misses × " + cn + " + " + fp + " false alarms × " + cp + ").</p>");
+  if (cn > cp * 1.5) out.push("<p><strong>Misses cost more:</strong> try a lower threshold (more recall, less precision) and compare total cost on validation data.</p>");
+  else if (cp > cn * 1.5) out.push("<p><strong>False alarms cost more:</strong> try a higher threshold (more precision, less recall).</p>");
+  else out.push("<p><strong>Similar costs:</strong> the threshold that maximizes F1 is a reasonable choice.</p>");
+  $("mOut").innerHTML = out.join("");
+}
+wire([[["pR", "pF", "pP", "pN"], prev], [["mTP", "mFP", "mFN", "mTN", "mCN", "mCP"], metrics]]);
+</script>
+</body>
+</html>

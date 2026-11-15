@@ -7,21 +7,25 @@
 <style>
   a { color: var(--blue); }
   a:hover { color: #a6e7d9; }
-  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6; --green:#b5e08f; --blue:#a7c8f9; }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6; --green:#b5e08f; --blue:#a7c8f9; --yellow:#f3d98b; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
   main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
   h1 { color:var(--green); margin-bottom:4px; }
   h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:40px; }
+  h3 { margin-top:28px; }
   .subtitle { color:var(--muted); margin-top:0; }
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
   a.card { display:block; background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:14px 18px; color:var(--text); text-decoration:none; }
   a.card:hover { border-color:var(--green); }
   a.card strong { color:var(--blue); display:block; margin-bottom:4px; }
   a.card span { color:var(--muted); font-size:0.9em; }
-  b.obj { display:block; font-weight:600; font-size:0.78em; color:var(--green); margin-bottom:4px; }
+  b.obj { display:flex; justify-content:space-between; font-weight:600; font-size:0.78em; color:var(--green); margin-bottom:4px; }
+  b.obj i { font-style:normal; color:var(--yellow); letter-spacing:1px; }
   .legend { background:var(--panel); border-radius:10px; padding:12px 18px; margin-top:16px; color:var(--muted); font-size:0.92em; }
   .legend strong { color:var(--text); }
+  ol.path { color:var(--muted); padding-left:22px; }
+  ol.path a { font-weight:600; }
 </style>
 </head>
 <body>
@@ -30,21 +34,43 @@
 <p class="subtitle">Interactive study guides for Google Cloud AI and machine learning certifications, with labs, calculators, sample outputs, scenarios, flashcards and practice quizzes.</p>
 
 <h2>Professional Machine Learning Engineer (PMLE)</h2>
-<div class="legend">Follows the exam guide dated June 1, 2026. <strong>Exam sections</strong>: low-code AI ~13%, data and models across teams ~16%, scaling prototypes ~21%, serving and scaling ~20%, pipelines ~18%, monitoring ~13%. Vertex AI is now <strong>Gemini Enterprise Agent Platform</strong>; the guides use the new names and map them to the old ones.</div>
+<div class="legend">Follows the exam guide dated June 1, 2026. <strong>Exam sections</strong>: low-code AI ~13%, data and models across teams ~16%, scaling prototypes ~21%, serving and scaling ~20%, pipelines ~18%, monitoring ~13%. Vertex AI is now <strong>Gemini Enterprise Agent Platform</strong>; the guides use the new names and map them to the old ones. <strong>Stars</strong> show how much exam weight a guide carries (★★★ heaviest).</div>
 
-<h3>Complete guide</h3>
+<h3>Suggested study path</h3>
+<ol class="path">
+  <li><a href="pmle-exam-overview.html">Exam overview</a> to see the scope and the renames.</li>
+  <li>The two <a href="#fundamentals">ML fundamentals</a> guides: most scenario questions hinge on leakage, imbalance, overfitting and choosing the right metric.</li>
+  <li>The three <a href="#genai">gen AI</a> guides: Model Garden, Agent Platform, RAG failure modes and LLM evaluation.</li>
+  <li>The six <a href="#sections">exam-section</a> guides, in order, for the Google Cloud product choices.</li>
+  <li>Retake each guide's quiz until you score above 85%, then review its gotchas list the day before the exam.</li>
+</ol>
+
+<h3>Start here</h3>
 <div class="grid">
-  <a class="card" href="pmle-mastery.html"><b class="obj">All sections 1–6</b><strong>PMLE: the complete guide</strong><span>Every objective in order, with five hands-on labs, a metrics calculator, a serving capacity calculator, a "which service?" chooser and a practice quiz.</span></a>
+  <a class="card" href="pmle-exam-overview.html"><b class="obj">All sections <i>★★★</i></b><strong>Exam overview and strategy</strong><span>What's tested and where study time pays off, the 2026 product renames, how to read Google scenario questions, and a "which service?" chooser.</span></a>
 </div>
 
-<h3>Jump to an exam section</h3>
+<h3 id="fundamentals">ML fundamentals (deep dives)</h3>
 <div class="grid">
-  <a class="card" href="pmle-mastery.html#lowcode"><b class="obj">Section 1 · ~13%</b><strong>Low-code AI</strong><span>BigQuery ML, AutoML, prebuilt APIs, Gemini and Model Garden.</span></a>
-  <a class="card" href="pmle-mastery.html#data"><b class="obj">Section 2 · ~16%</b><strong>Data and models across teams</strong><span>Preprocessing tools, Feature Store, PII, notebooks, experiments and metrics.</span></a>
-  <a class="card" href="pmle-mastery.html#choose"><b class="obj">Section 3 · ~21%</b><strong>Scaling prototypes</strong><span>Model and product choice, training, tuning, CPU/GPU/TPU, distributed training.</span></a>
-  <a class="card" href="pmle-mastery.html#serving"><b class="obj">Section 4 · ~20%</b><strong>Serving and scaling</strong><span>Online vs batch, containers, Model Registry, rollouts, private endpoints, autoscaling.</span></a>
-  <a class="card" href="pmle-mastery.html#pipelines"><b class="obj">Section 5 · ~18%</b><strong>Pipelines and retraining</strong><span>Agent Platform Pipelines, Managed Airflow, validation, CI/CD/CT.</span></a>
-  <a class="card" href="pmle-mastery.html#risks"><b class="obj">Section 6 · ~13%</b><strong>Monitoring AI</strong><span>Model Armor, safety filters, explainability, skew, drift and gen AI evaluation.</span></a>
+  <a class="card" href="ml-data-features-imbalance.html"><b class="obj">Fundamentals · 2.1, 3.1 <i>★★★</i></b><strong>1. Data, features and class imbalance</strong><span>Framing, splits, leakage, encoding, scaling, missing values, feature selection, and every way to handle imbalanced classes, with a class-weight calculator.</span></a>
+  <a class="card" href="ml-model-evaluation.html"><b class="obj">Fundamentals · 2.3, 3.2 <i>★★★</i></b><strong>2. Bias-variance and evaluation metrics</strong><span>Learning curves, regularization, ensembles, validation strategies, precision vs recall, ROC AUC vs PR AUC, thresholds and calibration, with two calculators.</span></a>
+</div>
+
+<h3 id="genai">Generative AI on Google Cloud (deep dives)</h3>
+<div class="grid">
+  <a class="card" href="gcp-genai-stack.html"><b class="obj">Gen AI · 1.2, 2.2, 3.2 <i>★★★</i></b><strong>Gemini, Model Garden and Agent Platform</strong><span>Model Garden (MaaS vs self-deploy), Gemini tiers and parameters, prompting, structured output, function calling, the tuning ladder, agents with ADK and Agent Runtime, and a token cost calculator.</span></a>
+  <a class="card" href="rag-failure-modes.html"><b class="obj">Gen AI · 1.2, 6.2 <i>★★★</i></b><strong>RAG and its failure modes</strong><span>The RAG pipeline, Agent Search vs RAG Engine vs Agent Retrieval, chunking, embeddings, hybrid search, reranking, 16 failure modes, retrieval vs generation metrics, and a context budget calculator.</span></a>
+  <a class="card" href="llm-evaluation.html"><b class="obj">Gen AI · 2.3, 6.2 <i>★★★</i></b><strong>LLM and agent evaluation</strong><span>Evaluation datasets, computation vs model-based metrics, pointwise vs pairwise, judge biases, Agent Platform Evals, trajectory metrics, safety, CI gates, and a win-rate and kappa calculator.</span></a>
+</div>
+
+<h3 id="sections">Exam sections</h3>
+<div class="grid">
+  <a class="card" href="bigquery-ml-automl-apis.html"><b class="obj">Section 1 · ~13% <i>★★</i></b><strong>BigQuery ML, AutoML and AI APIs</strong><span>The low-code ladder, BigQuery ML model types and options, remote Gemini models from SQL, AutoML, and prebuilt APIs.</span></a>
+  <a class="card" href="data-notebooks-experiments.html"><b class="obj">Section 2 · ~16% <i>★★</i></b><strong>Data, Feature Store, notebooks, experiments</strong><span>Preprocessing tools, data validation, the BigQuery-backed Feature Store, PII and privacy controls, Workbench vs Colab Enterprise, and experiment tracking.</span></a>
+  <a class="card" href="training-tuning-hardware.html"><b class="obj">Section 3 · ~21% <i>★★★</i></b><strong>Training, tuning and hardware</strong><span>Model and product choice, custom training jobs, troubleshooting, hyperparameter tuning, CPU vs GPU vs TPU, distributed strategies, and a memory calculator.</span></a>
+  <a class="card" href="serving-scaling.html"><b class="obj">Section 4 · ~20% <i>★★★</i></b><strong>Serving and scaling</strong><span>Online vs batch, containers, Model Registry, rollouts, private endpoints, autoscaling, LLM serving, and a capacity calculator.</span></a>
+  <a class="card" href="pipelines-mlops.html"><b class="obj">Section 5 · ~18% <i>★★★</i></b><strong>Pipelines and MLOps</strong><span>Agent Platform Pipelines, Managed Airflow, Ray, validation gates, retraining policies and CI/CD/CT.</span></a>
+  <a class="card" href="responsible-ai-monitoring.html"><b class="obj">Section 6 · ~13% <i>★★★</i></b><strong>Security, responsible AI and monitoring</strong><span>Model Armor, safety filters, fairness metrics, Explainable AI, skew vs drift vs concept drift, and troubleshooting order.</span></a>
 </div>
 </main>
 </body>

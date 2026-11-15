@@ -15,7 +15,16 @@ documentation.
 
 ### Deliverable
 
-One self-contained HTML file, `[topic]-mastery.html`:
+A set of self-contained HTML files, one per digestible topic (for example
+`[topic]-overview.html` plus one guide per exam section or heavily tested
+fundamental), in the style of the NCP-AII guides. Prefer several focused guides
+of 10–20 sections over one huge page. Each topic guide starts with a top bar
+linking back to `index.html`, ends with a previous/next pager in study order,
+and repeats the tail sections below (chooser, samples, scenarios, reference,
+flashcards, gotchas, quiz) for its own topic only. Only the overview guide
+carries the exam-at-a-glance and question-strategy sections.
+
+Every file follows these rules:
 
 - Everything inline: one `<style>` in `<head>`, one `<script>` at the end of
   `<body>`. No CDNs, web fonts, external images, analytics or `fetch` calls.

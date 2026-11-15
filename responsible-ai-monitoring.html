@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Securing, Explaining and Monitoring AI Solutions</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 6 · 6.1, 6.2</span></div>
+<h1>Security, responsible AI, explainability and monitoring</h1>
+<p class="subtitle">Section 6: securing AI systems (Model Armor, safety filters, Sensitive Data Protection, VPC Service Controls), responsible AI and fairness, Explainable AI methods, and Model Monitoring for training-serving skew, drift, concept drift and attribution drift, plus monitoring gen AI in production. Includes a monitoring lab.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#risks">Security, responsible AI and explainability</a></li>
+    <li><a href="#monitoring">Monitoring and troubleshooting</a></li>
+    <li><a href="#lab">Lab: Model Monitoring and drift</a></li>
+    <li><a href="#chooser">"Which control or monitor?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (18 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="risks">1. Security, responsible AI and explainability</h2>
+<h3>Securing AI systems</h3>
+<table>
+  <tr><th>Risk</th><th>Control</th></tr>
+  <tr><td>Prompt injection, jailbreaks, malicious URLs in prompts or retrieved documents</td><td><strong>Model Armor</strong>: screens prompts and responses for injection and jailbreak attempts, sensitive data, malicious URLs and harmful content; works across models and can be enforced through templates and floor settings</td></tr>
+  <tr><td>Harmful generated content</td><td>Gemini <strong>safety filters</strong>: harm categories (hate speech, harassment, sexually explicit, dangerous content) with configurable block thresholds; plus non-configurable protections</td></tr>
+  <tr><td>Users pasting PII or secrets into an LLM, or the model echoing them</td><td>Sensitive Data Protection inspection and de-identification (also inside Model Armor), <strong>regular expressions</strong> for simple fixed patterns, output filtering</td></tr>
+  <tr><td>Data or model exfiltration</td><td>VPC Service Controls perimeters, private endpoints, IAM least privilege, CMEK, organization policies, audit logs</td></tr>
+  <tr><td>Over-privileged agents and tools</td><td>Separate service accounts per agent or tool, scoped permissions, human approval for risky actions</td></tr>
+  <tr><td>Poisoned training data or supply chain</td><td>Data validation, provenance and lineage, trusted base images, Artifact Analysis vulnerability scanning</td></tr>
+</table>
+<div class="mn"><strong>Regex for patterns, SDP for PII, Armor for prompts, filters for harm, VPC-SC for exfiltration.</strong> Pick the narrowest tool that matches the threat in the question.</div>
+<h3>Responsible AI</h3>
+<ul>
+  <li><strong>Bias</strong> enters through unrepresentative data, historical labels and proxies (ZIP code standing in for race). Evaluate metrics <strong>per slice</strong> and compare groups with fairness metrics such as demographic parity, equal opportunity (equal recall) and equalized odds.</li>
+  <li><strong>Mitigate</strong>: collect better data, reweight or resample, remove proxies, adjust thresholds per policy, and document decisions in <strong>model cards</strong> and datasheets.</li>
+  <li>Monitor fairness in production, not only at launch; review gen AI outputs with safety evaluations and red-teaming.</li>
+</ul>
+<h3>Explainable AI on Agent Platform</h3>
+<table>
+  <tr><th>Method</th><th>Model types</th><th>Notes</th></tr>
+  <tr><td><strong>Sampled Shapley</strong></td><td>Any model, including non-differentiable (trees, ensembles), tabular</td><td>Approximates Shapley values; more paths = more accurate, slower</td></tr>
+  <tr><td><strong>Integrated Gradients</strong></td><td>Differentiable models (neural networks), tabular or images</td><td>Needs gradients; baseline choice matters</td></tr>
+  <tr><td><strong>XRAI</strong></td><td>Images (differentiable models)</td><td>Highlights salient <em>regions</em>, easier to read than pixel maps</td></tr>
+  <tr><td><strong>Example-based</strong> explanations</td><td>Models with embeddings</td><td>Returns nearest training examples; good for spotting mislabelled data and explaining by analogy</td></tr>
+</table>
+<p>Enable explanations when uploading or deploying the model (explanation spec with method and parameters), then call <code>explain</code> on the endpoint, or request explanations in batch inference. Feature attributions are also what Model Monitoring uses to detect <strong>attribution drift</strong>.</p>
+<div class="warn">Feature attributions explain what the model used, not causality. A high attribution for "ZIP code" may reveal a fairness problem rather than a business insight.</div>
+<h3>Fairness metrics in one table</h3>
+<table>
+  <tr><th>Metric</th><th>Equal across groups</th><th>Use when</th></tr>
+  <tr><td>Demographic parity</td><td>Positive prediction rate</td><td>Outcomes (offers, approvals) should be distributed evenly</td></tr>
+  <tr><td>Equal opportunity</td><td>True positive rate (recall)</td><td>Qualified people in every group should be found equally</td></tr>
+  <tr><td>Equalized odds</td><td>True positive and false positive rates</td><td>Both kinds of error should be balanced</td></tr>
+  <tr><td>Predictive parity</td><td>Precision</td><td>A positive prediction should mean the same in every group</td></tr>
+</table>
+<div class="warn">These criteria generally can't all be satisfied at once when base rates differ. Choose with domain and legal input, document the choice in the model card, and monitor it.</div>
+
+<!-- ============================================================ -->
+<h2 id="monitoring">2. Monitoring and troubleshooting</h2>
+<h3>What can go wrong after launch</h3>
+<table>
+  <tr><th>Problem</th><th>Meaning</th><th>Detect with</th></tr>
+  <tr><td><strong>Training-serving skew</strong></td><td>Production input distribution differs from the <em>training data</em> (often a preprocessing bug or a different source)</td><td>Model Monitoring with the training dataset as baseline</td></tr>
+  <tr><td><strong>Data (prediction) drift</strong></td><td>Production inputs change <em>over time</em> compared with an earlier production window</td><td>Model Monitoring comparing recent windows</td></tr>
+  <tr><td><strong>Concept drift</strong></td><td>The relationship between inputs and label changes (fraudsters adapt); inputs may look the same</td><td>Ground-truth performance tracking (needs labels): precision/recall over time</td></tr>
+  <tr><td><strong>Feature attribution drift</strong></td><td>The features the model relies on change importance</td><td>Model Monitoring with Explainable AI enabled</td></tr>
+  <tr><td>Operational issues</td><td>Latency, errors, saturation, cost</td><td>Cloud Monitoring metrics and alerts, Cloud Logging, request-response logging to BigQuery</td></tr>
+</table>
+<h3>Model Monitoring on Agent Platform</h3>
+<ul>
+  <li>Attach a monitor to a model version (Model Monitoring v2) or an endpoint; it works on endpoints, batch inference and models served elsewhere if you supply the data.</li>
+  <li>Choose the <strong>baseline</strong>: training data for skew, or a past production window for drift.</li>
+  <li>Choose the features, a <strong>distance measure</strong> (L-infinity for categorical, Jensen-Shannon divergence for numeric), <strong>thresholds</strong> per feature, a <strong>sampling rate</strong> and a <strong>schedule</strong> (monitoring interval).</li>
+  <li>Alerts go to email, Cloud Monitoring notification channels or Pub/Sub (which can trigger a retraining pipeline).</li>
+  <li>Request-response logging to BigQuery provides the raw data for analysis and for joining with labels later.</li>
+</ul>
+<div class="note">Model Monitoring v1 (endpoint-centric jobs) and v2 (model-centric monitors) both appear in material; default thresholds and APIs differ by version. Learn skew vs drift vs attribution drift and what each baseline is.</div>
+<h3>Monitoring and testing gen AI</h3>
+<ul>
+  <li>Log prompts, responses, latency, token counts, safety ratings and user feedback (with PII controls).</li>
+  <li>Run the evaluation dataset on a schedule and on every prompt or model change (regression testing), using Agent Platform Evals with computation and LLM-as-a-judge metrics.</li>
+  <li>Track groundedness and hallucination rates for RAG, and refusal and safety-block rates.</li>
+  <li>Watch for <strong>model version changes</strong>: pin model versions in production and re-evaluate before moving to a new one.</li>
+  <li>Use Cloud Trace and logging for agent and tool-call traces; Model Armor findings flow to Security Command Center.</li>
+</ul>
+<h3>Troubleshooting order</h3>
+<ol>
+  <li>Did the <strong>system</strong> break? Errors, latency, quota, a deployment change, a missing feature.</li>
+  <li>Did the <strong>inputs</strong> change? Skew (pipeline bug) vs drift (world changed).</li>
+  <li>Did the <strong>relationship</strong> change? Concept drift, confirmed with fresh labels.</li>
+  <li>Fix the cause: repair preprocessing for skew; retrain on recent data for drift and concept drift; add features if the world changed in a way the model can't see.</li>
+</ol>
+<div class="warn">Retraining doesn't fix training-serving skew caused by a bug: the new model trains on the same correct data and is served the same broken inputs. Fix the serving pipeline.</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">3. Lab: Model Monitoring and drift</h2>
+<ol>
+  <li>Using an endpoint from the <a href="serving-scaling.html#lab">serving lab</a>, enable request-response logging and create a model monitor with the training table as baseline, a short interval and low thresholds.</li>
+  <li>Send normal traffic, then traffic with one feature shifted (for example multiply <code>monthly_spend</code> by 3).</li>
+  <li>Find the skew alert; identify which feature crossed its threshold and the distance value.</li>
+  <li>Decide whether this is skew or drift, and what you'd do for a pipeline bug vs a real market change.</li>
+  <li>Enable explanations (Sampled Shapley) on the model and request explanations for five rows; compare the top features with <code>ML.GLOBAL_EXPLAIN</code> or your offline analysis.</li>
+  <li>Slice evaluation by one group column and compute recall per group (equal opportunity).</li>
+</ol>
+<p><strong>Clean up:</strong> delete the monitor, undeploy models and delete the endpoint.</p>
+
+<!-- ============================================================ -->
+<h2 id="chooser">4. "Which control or monitor?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">5. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>Model Monitoring alert (email / Pub/Sub payload, simplified)</code><span class="smp-what">Feature skew detected</span></summary><pre><code>Model monitor: churn-monitor   Objective: FEATURE_SKEW
+Baseline: bq://PROJECT_ID.shop.train   Window: last 24h, sampling 50%
+feature           distance   threshold   metric
+monthly_spend     0.47       0.30        jensen_shannon_divergence   ALERT
+plan_type         0.04       0.30        l_infinity                  ok
+country           0.36       0.30        l_infinity                  ALERT</code></pre><p class="smp-read"><strong>What to look at:</strong> Two features exceed their thresholds against the <em>training</em> baseline, so this is skew. A jump right after a release suggests a serving pipeline bug (for example spend now in cents instead of dollars); a gradual rise suggests the population changed. Check before retraining.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">6. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">7. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. Model Armor, Shapley, XRAI, skew, drift, fairness…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">8. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">9. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Skew baseline is training data; drift baseline is past production.</strong></li>
+<li><strong>Concept drift needs labels</strong>; input monitoring can't see it.</li>
+<li><strong>Retraining doesn't fix a serving bug.</strong></li>
+<li><strong>Sampled Shapley for trees; Integrated Gradients for differentiable models; XRAI for image regions.</strong></li>
+<li><strong>Aggregate metrics hide group harms</strong>: slice evaluation.</li>
+<li><strong>Fairness criteria conflict</strong>; choose with policy input and document.</li>
+<li><strong>Model Armor for prompt attacks and sensitive data</strong>; regex for simple fixed patterns.</li>
+<li><strong>VPC Service Controls, not IAM alone, stop exfiltration.</strong></li>
+<li><strong>Least-privilege identities per agent tool.</strong></li>
+<li><strong>Monitor operations too</strong>: latency, errors, cost, quota.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">10. Practice quiz (18 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="pipelines-mlops.html">← Pipelines and MLOps</a><a href="index.html">Back to all guides →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Explain each prediction of a boosted-tree model", "Explainable AI with Sampled Shapley", "Works for non-differentiable models.", "Integrated Gradients (needs gradients)"],
+  ["Explain which parts of an image drove a prediction", "XRAI (or Integrated Gradients) attributions", "Region-based saliency for images.", "Sampled Shapley on raw pixels"],
+  ["Production inputs no longer look like training data", "Model Monitoring skew detection with the training baseline", "Per-feature distance against training distributions with alerts.", "Waiting for users to complain"],
+  ["Block prompt injection and jailbreaks in a Gemini app", "Model Armor on prompts and responses", "Purpose-built screening of prompts, responses and URLs.", "Only raising the safety filter thresholds"],
+  ["Explain predictions by showing similar training cases", "Example-based explanations", "Nearest neighbours in embedding space.", "Integrated Gradients"],
+  ["Neural network on tabular data, need attributions", "Integrated Gradients (or Sampled Shapley)", "Gradient-based and efficient for differentiable models.", "XRAI"],
+  ["Qualified applicants should be approved equally across groups", "Equal opportunity (equal recall)", "Compares true positive rates.", "Overall accuracy"],
+  ["Document intended use, limits and evaluation per slice", "Model card", "Standard transparency artifact.", "A README with only hyperparameters"],
+  ["Stop data copying to projects outside the org", "VPC Service Controls perimeter", "Blocks exfiltration even with valid credentials.", "IAM roles alone"],
+  ["Each agent tool should only access what it needs", "Separate least-privilege service accounts per tool", "Limits blast radius.", "One owner-level account"],
+  ["Inputs changed vs last month's production traffic", "Prediction drift monitoring with a production baseline", "Compares windows over time.", "Skew vs training data"],
+  ["Model accuracy falls but inputs look stable", "Concept drift: track performance on fresh labels", "Relationship changed.", "Skew detection"],
+  ["Latency and error rate alerts for an endpoint", "Cloud Monitoring metrics and alerting", "Operational health.", "Model Monitoring feature skew"]
+];
+
+const samples = [
+  ["Model Monitoring alert (email / Pub/Sub payload, simplified)", "Feature skew detected", "Model monitor: churn-monitor   Objective: FEATURE_SKEW\nBaseline: bq://PROJECT_ID.shop.train   Window: last 24h, sampling 50%\nfeature           distance   threshold   metric\nmonthly_spend     0.47       0.30        jensen_shannon_divergence   ALERT\nplan_type         0.04       0.30        l_infinity                  ok\ncountry           0.36       0.30        l_infinity                  ALERT", "Two features exceed their thresholds against the <em>training</em> baseline, so this is skew. A jump right after a release suggests a serving pipeline bug (for example spend now in cents instead of dollars); a gradual rise suggests the population changed. Check before retraining."]
+];
+
+const traps = [
+  "<strong>Skew baseline is training data; drift baseline is past production.</strong>",
+  "<strong>Concept drift needs labels</strong>; input monitoring can't see it.",
+  "<strong>Retraining doesn't fix a serving bug.</strong>",
+  "<strong>Sampled Shapley for trees; Integrated Gradients for differentiable models; XRAI for image regions.</strong>",
+  "<strong>Aggregate metrics hide group harms</strong>: slice evaluation.",
+  "<strong>Fairness criteria conflict</strong>; choose with policy input and document.",
+  "<strong>Model Armor for prompt attacks and sensitive data</strong>; regex for simple fixed patterns.",
+  "<strong>VPC Service Controls, not IAM alone, stop exfiltration.</strong>",
+  "<strong>Least-privilege identities per agent tool.</strong>",
+  "<strong>Monitor operations too</strong>: latency, errors, cost, quota."
+];
+
+const questions = [
+  { q: "A Gemini assistant has access to internal tools. Users may try prompt injection and jailbreaks, and some paste credit-card numbers. Which control best addresses this?", opts: ["A larger model", "Model Armor screening prompts and responses (injection, jailbreak, sensitive data)", "Lower temperature", "Batch inference"], a: 1, why: "Model Armor is built to detect prompt attacks and sensitive data in prompts and responses." },
+  { q: "You need to reject inputs that contain a fixed internal ticket ID format before they reach an LLM. What's the simplest adequate control?", opts: ["Retraining the model", "Explainable AI", "Provisioned Throughput", "A regular expression filter"], a: 3, why: "A simple, fixed pattern is a regex job; heavier tools are for broader threats." },
+  { q: "Which attribution method suits a boosted-tree model on Agent Platform?", opts: ["Sampled Shapley", "Integrated Gradients", "XRAI", "BLEU"], a: 0, why: "Sampled Shapley doesn't need gradients, so it works for non-differentiable models like trees." },
+  { q: "Radiologists want to see which regions of an X-ray drove an image model's prediction. Which method is designed for this?", opts: ["Sampled Shapley on tabular features", "ROUGE", "XRAI", "k-means"], a: 2, why: "XRAI produces region-based saliency for image models." },
+  { q: "A loan model's overall metrics are good, but approval rates differ sharply between demographic groups. What's the best first step?", opts: ["Ignore it: overall metrics are fine", "Add more layers", "Evaluate fairness metrics by slice, look for proxy features and data imbalance, and mitigate before launch", "Increase the threshold for everyone"], a: 2, why: "Responsible AI practice is to measure by slice, find the cause, mitigate and document." },
+  { q: "Right after a mobile app release, Model Monitoring reports skew on monthly_spend against the training baseline. What's the most likely cause and fix?", opts: ["A change in how the app sends the feature (for example units); fix the serving input", "Concept drift; retrain immediately", "The training data is too small; add data", "Hardware failure; change machine type"], a: 0, why: "A sudden skew after a release points to a serving pipeline change; retraining won't fix a bug." },
+  { q: "Fraud recall falls over several months, while monitored input distributions are stable. What's happening?", opts: ["Training-serving skew", "Endpoint latency", "Feature Store downtime", "Concept drift: the relationship between features and fraud changed"], a: 3, why: "Stable inputs with falling accuracy indicates concept drift, visible only through labelled outcomes." },
+  { q: "What does Model Monitoring compare to detect prediction drift rather than training-serving skew?", opts: ["Production inputs against the training data", "Recent production inputs against an earlier production window", "Two model versions' latency", "Training loss across epochs"], a: 1, why: "Drift compares serving data over time; skew compares serving data with training data." },
+  { q: "A team wants alerts when the features driving their model's predictions change, not just raw input distributions. What should they enable?", opts: ["Feature attribution drift monitoring with Explainable AI", "Request-response logging only", "Cloud Build triggers", "Context caching"], a: 0, why: "Attribution drift tracks changes in feature importance and needs explanations enabled." },
+  { q: "Lenders require that qualified applicants in each group are approved at the same rate. Which fairness metric matches?", opts: ["Demographic parity", "Overall accuracy", "Equal opportunity (equal true positive rates)", "Predictive parity"], a: 2, why: "Equal opportunity compares recall among truly qualified applicants." },
+  { q: "Which explanation type returns the most similar training examples to a prediction?", opts: ["XRAI", "Integrated Gradients", "Sampled Shapley", "Example-based explanations"], a: 3, why: "It retrieves nearest neighbours in embedding space." },
+  { q: "Model Monitoring shows skew after a migration changed a price field from dollars to cents in serving. What should you do?", opts: ["Retrain the model on the new values", "Fix the serving transformation; retraining won't help", "Raise the skew threshold", "Disable monitoring"], a: 1, why: "Skew from a bug is fixed in the pipeline." },
+  { q: "A team must stop BigQuery data being exported to personal projects, even by users with valid access. Which control?", opts: ["Stronger passwords", "Model Armor", "CMEK", "A VPC Service Controls perimeter"], a: 3, why: "Perimeters block data movement across boundaries." },
+  { q: "Which artifact documents a model's intended use, limitations and per-slice evaluation for stakeholders?", opts: ["A model card", "A Dockerfile", "A pipeline YAML", "A TensorBoard log"], a: 0, why: "Model cards are the transparency standard." },
+  { q: "Endpoint latency and 5xx errors should page the on-call engineer. What's the right tool?", opts: ["Model Monitoring feature skew", "Cloud Monitoring metrics with alerting policies", "Explainable AI", "Model Registry"], a: 1, why: "Operational health uses Cloud Monitoring." },
+  { q: "Why can't a model satisfy demographic parity, equal opportunity and predictive parity all at once in most real cases?", opts: ["Because models can't be evaluated per group", "Because fairness requires deep learning", "When base rates differ between groups, these criteria mathematically conflict", "They always can"], a: 2, why: "Trade-offs must be chosen and documented." },
+  { q: "Chat logs contain customers' card numbers. What's the best control?", opts: ["Screen and redact with Model Armor / Sensitive Data Protection before storing or sending to the model", "Delete logs monthly", "Increase temperature", "Use a bigger model"], a: 0, why: "Detect and de-identify sensitive data at the boundary." },
+  { q: "Monitoring baseline choice: what baseline detects drift over time rather than training-serving skew?", opts: ["The training dataset", "The test set only", "A random sample of public data", "A recent past window of production data"], a: 3, why: "Drift compares production windows over time." }
+];
+
+const scenarios = [
+  {"t": "Model degrades right after a new app release, inputs look odd", "diag": "Model Monitoring skew report against the training baseline; compare serving preprocessing with training code.", "cause": "Training-serving skew from a serving change (units, encoding, missing default).", "fix": "Fix the serving preprocessing, or move it into the model, TRANSFORM or Feature Store. Retraining won't help."},
+  {"t": "Fraud recall drops slowly over months; input distributions look stable", "diag": "Track precision and recall on labelled outcomes over time.", "cause": "Concept drift: fraud patterns changed while inputs look similar.", "fix": "Retrain on recent labelled data on a policy; add features capturing new behaviour; alert on ground-truth metrics."},
+  {"t": "New model wins overall but loses badly for one region", "diag": "Slice evaluation by region, device and demographic groups.", "cause": "Aggregate metrics hide a subgroup regression or fairness problem.", "fix": "Add slice-based thresholds in the pipeline's model validation; improve data for that slice."},
+  {"t": "Approval rates differ by group though overall accuracy is high", "diag": "Slice metrics by group; compute fairness metrics.", "cause": "Biased historical labels or proxy features.", "fix": "Remove proxies, reweight or collect better data, review thresholds with policy, document in model card, monitor."},
+  {"t": "Model Monitoring alerts on skew for a feature after a schema migration", "diag": "Compare raw values at serving vs training.", "cause": "Units changed (cents vs dollars) in the serving path.", "fix": "Fix the serving transformation; don't retrain on the broken input."},
+  {"t": "Attribution drift alert: a minor feature now dominates", "diag": "Compare attributions over time; inspect that feature's pipeline.", "cause": "Upstream change or leakage introduced.", "fix": "Investigate the feature source; fix or remove; retrain if the world truly changed."},
+  {"t": "Agent tool runs with a project owner service account", "diag": "Review IAM bindings.", "cause": "Over-privileged identity.", "fix": "Dedicated least-privilege service accounts per tool, human approval for risky actions."},
+  {"t": "Users paste credit card numbers into a chatbot and logs store them", "diag": "Inspect logs for sensitive data.", "cause": "No sensitive data screening.", "fix": "Model Armor / Sensitive Data Protection on input and logs; redact before storage."},
+  {"t": "No one can explain why an image model rejects certain parts", "diag": "Request XRAI attributions.", "cause": "No explanation spec configured.", "fix": "Enable XRAI or Integrated Gradients explanations at deployment; review salient regions with experts."}
+];
+
+const cheat = [
+  ["Model Armor", "Screens prompts and responses: injection, jailbreak, PII, URLs, harm"],
+  ["Safety filters", "Gemini harm categories with block thresholds"],
+  ["Sampled Shapley", "Attributions for any model, including trees"],
+  ["Integrated Gradients", "Attributions for differentiable models"],
+  ["XRAI", "Region-based image attributions"],
+  ["Example-based explanations", "Nearest training examples via embeddings"],
+  ["Model card", "Documentation of a model's use, data, metrics and limits"],
+  ["Fairness metrics", "Demographic parity, equal opportunity, equalized odds"],
+  ["Training-serving skew", "Serving inputs differ from training data"],
+  ["Data / prediction drift", "Serving inputs change over time"],
+  ["Concept drift", "Input-to-label relationship changes; needs labels"],
+  ["Feature attribution drift", "The features the model relies on change"],
+  ["Jensen-Shannon divergence / L-infinity", "Drift distances for numeric / categorical features"],
+  ["Request-response logging", "Log endpoint traffic to BigQuery for analysis"],
+  ["Demographic parity", "Equal positive prediction rates"],
+  ["Equal opportunity", "Equal true positive rates"],
+  ["Equalized odds", "Equal TPR and FPR"],
+  ["Predictive parity", "Equal precision"],
+  ["Proxy feature", "Stands in for a protected attribute (e.g. ZIP code)"],
+  ["Datasheet for datasets", "Documents data origin and limits"],
+  ["Explanation spec", "Method and parameters set at upload or deploy"],
+  ["Model Monitoring v2", "Model-centric monitors"],
+  ["Cloud Monitoring", "Operational metrics and alerts"],
+  ["Security Command Center", "Receives Model Armor findings"],
+  ["Organization policies", "Guardrails like restricting public IPs or regions"],
+  ["Audit logs", "Who did what, when"]
+];
+
+const cards = [
+  ["Trees: which attribution method?", "Sampled Shapley"],
+  ["Images: region attributions", "XRAI"],
+  ["Skew baseline", "Training data"],
+  ["Drift baseline", "Earlier production window"],
+  ["Concept drift detection", "Ground-truth metrics over time"],
+  ["Retrain fixes a serving bug?", "No: fix the serving pipeline"],
+  ["Prompt injection defense", "Model Armor"],
+  ["Equal recall across groups", "Equal opportunity"],
+  ["Equal positive rates", "Demographic parity"],
+  ["Equal TPR and FPR", "Equalized odds"],
+  ["Explain by similar cases", "Example-based explanations"],
+  ["Exfiltration prevention", "VPC Service Controls"],
+  ["Skew caused by a bug: retrain?", "No: fix the serving pipeline"],
+  ["Inputs stable, accuracy falling", "Concept drift"],
+  ["Ops health of endpoints", "Cloud Monitoring"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+</script>
+</body>
+</html>

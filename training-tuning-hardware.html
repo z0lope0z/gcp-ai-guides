@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training, Hyperparameter Tuning and Hardware on Google Cloud</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 3 · 3.1–3.3</span></div>
+<h1>Training, hyperparameter tuning and hardware</h1>
+<p class="subtitle">Section 3: choosing the model type and product, organizing training data, managed custom training (prebuilt vs custom containers, worker pools, Spot and reserved capacity), troubleshooting failed training, hyperparameter tuning with Vizier, fine-tuning foundation models, CPU vs GPU vs TPU, and distributed training strategies.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#choose">Choosing the model, product and approach</a></li>
+    <li><a href="#training">Training and tuning on Google Cloud</a></li>
+    <li><a href="#hardware">Hardware and distributed training</a></li>
+    <li><a href="#memcalc">Accelerator memory calculator</a></li>
+    <li><a href="#lab">Lab: custom training, tuning and the registry</a></li>
+    <li><a href="#chooser">"Which training setup?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (19 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="choose">1. Choosing the model, product and approach</h2>
+<h3>Model type</h3>
+<table>
+  <tr><th>Problem</th><th>Good first choice</th><th>Why</th></tr>
+  <tr><td>Tabular classification / regression</td><td>Gradient-boosted trees (XGBoost, BQML boosted trees, AutoML tabular)</td><td>Strong accuracy, little preprocessing, feature importance</td></tr>
+  <tr><td>Must explain decisions to regulators</td><td>Linear/logistic regression, small trees, or boosted trees with Explainable AI</td><td>Interpretable by design, or attributions per prediction</td></tr>
+  <tr><td>Univariate or many-series forecasting</td><td><strong>ARIMA_PLUS</strong> (BQML), AutoML forecasting, TimesFM</td><td>Seasonality and holidays handled; fast</td></tr>
+  <tr><td>Images, audio, unstructured patterns</td><td>Deep neural networks (DNN, CNN, transformers), transfer learning</td><td>Learns representations; start from a pretrained model</td></tr>
+  <tr><td>Text generation, summarization, extraction, chat, multimodal reasoning</td><td><strong>LLM</strong> (Gemini) with prompting, RAG or tuning</td><td>No task-specific training data needed to start</td></tr>
+  <tr><td>Recommendations</td><td>Matrix factorization, two-tower retrieval + ranking, or Recommendations AI</td><td>Collaborative signals at scale</td></tr>
+  <tr><td>Anomaly detection with no labels</td><td>k-means distance, autoencoder, ARIMA_PLUS anomalies</td><td>Unsupervised</td></tr>
+</table>
+<h3>Product</h3>
+<table>
+  <tr><th>Product</th><th>Choose when</th></tr>
+  <tr><td>Prebuilt API</td><td>Generic task, standard classes</td></tr>
+  <tr><td>BigQuery ML</td><td>Data in BigQuery, SQL team, batch scoring</td></tr>
+  <tr><td>AutoML</td><td>Custom labels, best accuracy with no ML code</td></tr>
+  <tr><td>Gemini / Model Garden</td><td>Language, vision or multimodal tasks; quick prototypes</td></tr>
+  <tr><td>Managed (custom) training</td><td>Your code and framework, scaled and managed</td></tr>
+  <tr><td>Pipelines</td><td>Any of the above, repeatable and automated</td></tr>
+  <tr><td>GKE / Ray</td><td>Existing Kubernetes or Ray platform, special scheduling, multi-tenant clusters</td></tr>
+</table>
+<h3>Deployment strategy</h3>
+<table>
+  <tr><th>Requirement</th><th>Strategy</th></tr>
+  <tr><td>Predictions needed per request in under ~100 ms</td><td>Online endpoint (Agent Platform, Cloud Run or GKE), features from the online Feature Store</td></tr>
+  <tr><td>Scores needed daily for all customers</td><td>Batch inference (or BQML <code>ML.PREDICT</code>) writing to BigQuery; no endpoint to pay for</td></tr>
+  <tr><td>Precompute is possible and inputs are known in advance</td><td>Batch precompute, then serve lookups from a low-latency store</td></tr>
+  <tr><td>No connectivity, privacy on device, ultra-low latency</td><td>Edge: TF Lite / LiteRT on device, exported AutoML Edge models</td></tr>
+</table>
+<div class="key">Interpretability is a requirement, not a nice-to-have, when the question mentions regulators, adverse action, credit, healthcare or "explain to the customer". Choose interpretable models or enable Explainable AI, and say so in the design.</div>
+
+<!-- ============================================================ -->
+<h2 id="training">2. Training and tuning on Google Cloud</h2>
+<h3>Organizing and ingesting training data</h3>
+<ul>
+  <li>Tabular: BigQuery tables, read by AutoML and pipelines directly, or by custom code through the <strong>BigQuery Storage Read API</strong> (fast parallel reads into TensorFlow, PyTorch or pandas).</li>
+  <li>Unstructured: files in Cloud Storage plus a manifest. Custom training jobs see buckets as local paths through <strong>Cloud Storage FUSE</strong> (<code>/gcs/my-bucket/...</code>).</li>
+  <li>Managed datasets on Agent Platform hold image, video and tabular datasets with labels and splits, used by AutoML and for lineage.</li>
+  <li>Ingest from other systems with Dataflow, Datastream (database change data capture into BigQuery), Storage Transfer Service, or BigQuery Data Transfer Service.</li>
+</ul>
+<h3>Managed training (custom training jobs)</h3>
+<table>
+  <tr><th>Option</th><th>When</th></tr>
+  <tr><td><strong>Prebuilt training container</strong> + your Python package or script</td><td>Your framework is supported (TensorFlow, PyTorch, scikit-learn, XGBoost); least work</td></tr>
+  <tr><td><strong>Custom container</strong> (image in Artifact Registry)</td><td>Unusual dependencies, other languages, exact environment control</td></tr>
+  <tr><td>Worker pools</td><td>Pool 0 is the chief; further pools are workers, parameter servers or a reduction server</td></tr>
+  <tr><td>Serverless Training vs <strong>Managed Training Clusters</strong></td><td>Pay per job with on-demand capacity, or reserved, persistent clusters for large, frequent training</td></tr>
+  <tr><td>Spot VMs, reservations, Dynamic Workload Scheduler</td><td>Cheaper interruptible capacity (checkpoint!), guaranteed capacity, or queued access to scarce GPUs</td></tr>
+  <tr><td>Kubeflow on GKE / Ray on Agent Platform</td><td>Existing Kubernetes skills, custom operators; Ray for Python-native distributed data and training</td></tr>
+  <tr><td>AutoML and Tabular Workflows</td><td>No training code; Tabular Workflows expose the AutoML pipeline for more control</td></tr>
+</table>
+<pre><code>gcloud ai custom-jobs create --region=us-central1 --display-name=churn-train \
+  --python-package-uris=gs://BUCKET/trainer-0.1.tar.gz \
+  --worker-pool-spec=machine-type=n1-standard-8,accelerator-type=NVIDIA_TESLA_T4,accelerator-count=1,replica-count=1,executor-image-uri=PREBUILT_PYTORCH_IMAGE,python-module=trainer.task \
+  --args=--epochs=10,--data=bq://PROJECT_ID.shop.train
+# The job writes its model to the directory in AIP_MODEL_DIR (a Cloud Storage path).</code></pre>
+<h3>Troubleshooting training failures</h3>
+<table>
+  <tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr>
+  <tr><td>Job fails immediately with permission denied</td><td>The training service account can't read the bucket or BigQuery table</td><td>Grant the job's service account the roles it needs (it's not your user identity)</td></tr>
+  <tr><td>Out of memory (host or GPU)</td><td>Batch size too large, data loaded fully into memory</td><td>Smaller batches, streaming input (<code>tf.data</code>, DataLoader), larger machine or more GPUs</td></tr>
+  <tr><td>Loss becomes NaN</td><td>Learning rate too high, unscaled features, bad labels, log(0)</td><td>Lower learning rate, normalize, gradient clipping, check data</td></tr>
+  <tr><td>Quota exceeded / resources unavailable</td><td>GPU quota or capacity in the region</td><td>Request quota, another region or accelerator, reservations or Dynamic Workload Scheduler</td></tr>
+  <tr><td>Job restarted and lost hours of work</td><td>Spot preemption or maintenance without checkpoints</td><td>Checkpoint to Cloud Storage regularly; resume from the latest checkpoint</td></tr>
+  <tr><td>GPU utilization low</td><td>Input pipeline bottleneck</td><td>Prefetch, parallel reads, TFRecord shards, cache; profile with TensorBoard Profiler</td></tr>
+  <tr><td>Training accuracy high, validation poor</td><td>Overfitting</td><td>Regularization, dropout, more data, augmentation, early stopping</td></tr>
+  <tr><td>Both training and validation poor</td><td>Underfitting or bad features</td><td>Bigger model, better features, train longer</td></tr>
+</table>
+<h3>Hyperparameter tuning</h3>
+<p>Hyperparameter tuning jobs (powered by <strong>Vizier</strong>) run many trials of your training code with different values and optimize a metric your code reports (with the <code>cloudml-hypertune</code> helper or the metric reporting API).</p>
+<ul>
+  <li><strong>Algorithms</strong>: Bayesian optimization (default), grid search, random search.</li>
+  <li><strong><code>max_trial_count</code></strong> bounds cost; <strong><code>parallel_trial_count</code></strong> trades wall-clock time against quality: more parallel trials finish sooner, but Bayesian search learns less from earlier trials.</li>
+  <li>Use log scaling for learning rates, discrete values for layer counts, and early stopping of poor trials.</li>
+  <li>Simple alternatives: AutoML (tunes for you), BQML <code>num_trials</code> with hyperparameter ranges.</li>
+</ul>
+<h3>Fine-tuning foundation models</h3>
+<table>
+  <tr><th>Option</th><th>Use</th></tr>
+  <tr><td>Supervised tuning of Gemini on Agent Platform (or from BigQuery ML)</td><td>Managed, parameter-efficient tuning on JSONL prompt/response pairs; the tuned model gets its own endpoint</td></tr>
+  <tr><td>Open models from Model Garden (Gemma, Llama) with LoRA / QLoRA notebooks or managed tuning</td><td>Full control of weights; deploy where you want</td></tr>
+  <tr><td>Reinforcement learning / preference tuning</td><td>Align to human preferences</td></tr>
+</table>
+<div class="key">Consider tuning only when prompting and grounding fall short <em>and</em> you have good labelled examples. Benefits: higher quality on a narrow task, shorter prompts (cheaper, faster), consistent format. Costs: data preparation, tuning jobs, re-tuning when the base model is updated, and evaluation work.</div>
+
+<!-- ============================================================ -->
+<h2 id="hardware">3. Hardware and distributed training</h2>
+<table>
+  <tr><th>Hardware</th><th>Best for</th><th>Watch out</th></tr>
+  <tr><td><strong>CPU</strong></td><td>Classic ML (scikit-learn, XGBoost on modest data), preprocessing, small models, low-volume serving</td><td>Slow for deep learning</td></tr>
+  <tr><td><strong>GPU</strong> (NVIDIA L4, A100, H100, H200, B200...)</td><td>Most deep learning; flexible across frameworks; custom CUDA ops; inference with TensorRT or vLLM</td><td>Quota and capacity; cost when idle</td></tr>
+  <tr><td><strong>TPU</strong> (Cloud TPU v5e, v5p, Trillium, Ironwood...)</td><td>Large matrix-heavy models in JAX, TensorFlow or PyTorch/XLA; large-batch training; high-throughput LLM serving at low cost</td><td>Custom ops not supported by XLA, heavy dynamic shapes, high-precision (float64) math and very small models fit poorly</td></tr>
+  <tr><td><strong>Edge</strong> (phones, Edge TPU, Jetson)</td><td>On-device inference, offline use</td><td>Needs quantized, small models</td></tr>
+</table>
+<div class="note">Accelerator generations change quickly. The exam tests the trade-off (CPU vs GPU vs TPU, and when TPUs don't fit), not the newest SKU.</div>
+<h3>Distributed training strategies</h3>
+<table>
+  <tr><th>Strategy</th><th>How</th><th>When</th></tr>
+  <tr><td><strong>Data parallelism</strong></td><td>Copy the model to every device; split each batch; average gradients with all-reduce</td><td>The model fits on one device and you want speed. TensorFlow <code>MirroredStrategy</code> (one machine), <code>MultiWorkerMirroredStrategy</code> (many machines), <code>TPUStrategy</code>; PyTorch DDP</td></tr>
+  <tr><td>Parameter server</td><td>Workers push gradients to parameter servers asynchronously</td><td>Large sparse models (embeddings), many CPU workers</td></tr>
+  <tr><td><strong>Model parallelism</strong> (tensor, pipeline)</td><td>Split layers or tensors across devices</td><td>The model doesn't fit on one device</td></tr>
+  <tr><td>Sharded data parallel (FSDP, ZeRO)</td><td>Shard parameters, gradients and optimizer states across data-parallel workers</td><td>Large models with data-parallel simplicity</td></tr>
+  <tr><td><strong>Reduction Server</strong> (Agent Platform)</td><td>Extra reducer nodes speed up all-reduce for multi-node GPU data parallel jobs</td><td>Network-bound gradient synchronization</td></tr>
+</table>
+<div class="mn"><strong>"Fits? Data. Doesn't fit? Model."</strong> If one copy fits on one device, scale out with data parallelism; if it doesn't, split the model.</div>
+<div class="warn">More GPUs doesn't fix an input-bound job. If GPUs sit at 30% utilization, fix the data pipeline first. And with data parallelism, scale the learning rate or batch size deliberately: global batch = per-device batch × devices.</div>
+
+<!-- ============================================================ -->
+<h2 id="memcalc">4. Accelerator memory calculator</h2>
+<p>A rough first estimate of whether a model fits on one accelerator, and therefore whether data parallelism is enough or the model must be sharded. Real usage also depends on activations, sequence length and batch size.</p>
+<div class="card">
+  <div class="tool">
+    <label>Parameters (billions)<br><input id="gP" type="number" min="0" step="0.1" value="7"></label>
+    <label>Workload<br><select id="gM">
+      <option value="inf16">Inference, 16-bit weights</option>
+      <option value="inf8">Inference, 8-bit quantized</option>
+      <option value="inf4">Inference, 4-bit quantized</option>
+      <option value="lora">LoRA fine-tuning (16-bit base)</option>
+      <option value="full" selected>Full training, mixed precision + Adam</option>
+    </select></label>
+    <label>Memory per accelerator (GB)<br><input id="gG" type="number" min="1" value="80"></label>
+    <label>Overhead for activations / KV cache (%)<br><input id="gO" type="number" min="0" value="20"></label>
+  </div>
+  <div class="outbox" id="gOut"></div>
+</div>
+<div class="mn"><strong>Bytes per parameter:</strong> 16-bit inference ≈ 2; int8 ≈ 1; int4 ≈ 0.5; full mixed-precision training with Adam ≈ 16 (weights, gradients, two optimizer states, master weights).</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">5. Lab: custom training, tuning and the registry</h2>
+<p>Placeholders: <code>PROJECT_ID</code>, <code>BUCKET</code>, region <code>us-central1</code>.</p>
+<ol>
+  <li>Write a scikit-learn or XGBoost script that reads from BigQuery, trains, reports a metric with <code>cloudml-hypertune</code>, and saves the model to <code>AIP_MODEL_DIR</code>.</li>
+  <li>Run it as a custom training job with a prebuilt container and a dedicated, least-privilege service account. Remove its BigQuery role once and read the 403 error: which principal does it name?</li>
+  <li>Run a hyperparameter tuning job with 12 trials, parallel 3, a log-scaled learning rate and a discrete max depth. Compare with parallel 12: what changes in wall-clock time and best metric?</li>
+  <li>Add checkpointing to Cloud Storage and rerun on Spot VMs; confirm it resumes after a restart.</li>
+  <li>Upload the best model to Model Registry as version 1 with a prebuilt prediction container. Continue in the <a href="serving-scaling.html#lab">serving lab</a>.</li>
+</ol>
+<p><strong>Clean up:</strong> delete jobs' output you don't need and the staging bucket contents.</p>
+
+<!-- ============================================================ -->
+<h2 id="chooser">6. "Which training setup?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">7. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>gcloud ai hp-tuning-jobs describe JOB_ID --region=us-central1</code><span class="smp-what">Hyperparameter tuning trials</span></summary><pre><code>state: JOB_STATE_SUCCEEDED
+maxTrialCount: 20
+parallelTrialCount: 4
+studySpec:
+  algorithm: ALGORITHM_UNSPECIFIED      # Bayesian optimization by default
+  metrics: [{metricId: auc_pr, goal: MAXIMIZE}]
+trials:
+- id: '7'   parameters: [{parameterId: learning_rate, value: 0.042}, {parameterId: max_depth, value: 7}]
+  finalMeasurement: {metrics: [{metricId: auc_pr, value: 0.734}]}
+- id: '12'  state: INFEASIBLE
+- id: '15'  parameters: [{parameterId: learning_rate, value: 0.31}, {parameterId: max_depth, value: 3}]
+  finalMeasurement: {metrics: [{metricId: auc_pr, value: 0.611}]}</code></pre><p class="smp-read"><strong>What to look at:</strong> The best trial (7) wins on the reported metric <code>auc_pr</code>, which the training code must report. Four trials ran in parallel: faster, but each wave learns less from the previous ones. An INFEASIBLE trial usually means the code crashed or didn't report the metric for those values.</p></details>
+<details class="smp"><summary><code>Training job log (custom job)</code><span class="smp-what">A failure you should recognize</span></summary><pre><code>INFO  Reading training data from bq://PROJECT_ID.shop.train
+ERROR google.api_core.exceptions.Forbidden: 403 Access Denied: Table PROJECT_ID:shop.train:
+      User does not have bigquery.tables.getData permission.
+      principal: service-PROJECT_NUMBER@gcp-sa-aiplatform-cc.iam.gserviceaccount.com
+Job failed: The replica workerpool0-0 exited with a non-zero status of 1.</code></pre><p class="smp-read"><strong>What to look at:</strong> The job runs as a service account, not as you. Grant that identity (or, better, a custom service account you pass to the job) BigQuery Data Viewer on the dataset and BigQuery Job User on the project.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">8. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">9. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. custom container, Vizier, TPU, FSDP, Spot…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">10. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">11. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>The job runs as a service account</strong>, not as you: grant it the roles.</li>
+<li><strong>Save models to AIP_MODEL_DIR</strong> so the platform can find them.</li>
+<li><strong>Spot VMs need checkpoints</strong> or every preemption restarts training.</li>
+<li><strong>Fits on one device → data parallel; doesn't → shard or split the model.</strong></li>
+<li><strong>Low GPU utilization is usually the input pipeline</strong>, not too few GPUs.</li>
+<li><strong>TPUs don't fit custom CUDA ops, float64 or heavy dynamic shapes.</strong></li>
+<li><strong>More parallel trials finish sooner but search less adaptively.</strong></li>
+<li><strong>Use log scale for learning rates</strong> in tuning.</li>
+<li><strong>Full fine-tuning needs ~8× the memory of 16-bit inference</strong>; LoRA and quantization cut it.</li>
+<li><strong>Prebuilt containers before custom containers</strong> when the framework is supported.</li>
+<li><strong>Interpretability requirements drive model choice</strong> in regulated domains.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">12. Practice quiz (19 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="data-notebooks-experiments.html">← Data, Feature Store, notebooks, experiments</a><a href="serving-scaling.html">Next: Serving and scaling →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Large model doesn't fit in one GPU's memory", "Model parallelism or sharded data parallel (FSDP)", "Splits parameters across devices.", "MirroredStrategy (copies the whole model to each GPU)"],
+  ["Huge TensorFlow model with standard ops, cost-sensitive large-batch training", "Cloud TPU", "High matrix throughput per dollar with XLA.", "TPU for a model with custom CUDA ops"],
+  ["Tabular data, best accuracy, little preprocessing", "Gradient-boosted trees (XGBoost, BQML boosted trees, AutoML)", "Strong default for tabular problems.", "A deep neural network from scratch"],
+  ["Image task with only 2,000 labelled images", "Transfer learning from a pretrained model", "Reuses learned features; needs little data.", "Training a CNN from scratch"],
+  ["Framework supported, least packaging work", "Prebuilt training container with your Python package", "No Dockerfile to maintain.", "A custom container"],
+  ["Unusual system libraries or another language", "Custom container in Artifact Registry", "Full environment control.", "Prebuilt container"],
+  ["Scarce H100s needed for a 3-day job, flexible start", "Dynamic Workload Scheduler (or a reservation)", "Queued or guaranteed access to scarce capacity.", "Retrying on-demand every hour"],
+  ["Cheapest compute for fault-tolerant training", "Spot VMs with checkpointing", "Big discount; interruptions handled by resume.", "Spot VMs without checkpoints"],
+  ["Multi-node GPU data parallel job is network-bound", "Reduction Server", "Faster all-reduce.", "More parameter servers"],
+  ["Existing Ray code for distributed Python", "Ray on Agent Platform", "Runs Ray workloads managed.", "Rewriting to Beam"],
+  ["Learning rate search range 1e-5 to 1e-1", "Log scale in the tuning spec", "Explores orders of magnitude evenly.", "Linear scale"],
+  ["Need tuning results fast and have budget for many machines", "Higher parallel_trial_count", "Shorter wall-clock time, slightly less adaptive search.", "Sequential trials"]
+];
+
+const samples = [
+  ["gcloud ai hp-tuning-jobs describe JOB_ID --region=us-central1", "Hyperparameter tuning trials", "state: JOB_STATE_SUCCEEDED\nmaxTrialCount: 20\nparallelTrialCount: 4\nstudySpec:\n  algorithm: ALGORITHM_UNSPECIFIED      # Bayesian optimization by default\n  metrics: [{metricId: auc_pr, goal: MAXIMIZE}]\ntrials:\n- id: '7'   parameters: [{parameterId: learning_rate, value: 0.042}, {parameterId: max_depth, value: 7}]\n  finalMeasurement: {metrics: [{metricId: auc_pr, value: 0.734}]}\n- id: '12'  state: INFEASIBLE\n- id: '15'  parameters: [{parameterId: learning_rate, value: 0.31}, {parameterId: max_depth, value: 3}]\n  finalMeasurement: {metrics: [{metricId: auc_pr, value: 0.611}]}", "The best trial (7) wins on the reported metric <code>auc_pr</code>, which the training code must report. Four trials ran in parallel: faster, but each wave learns less from the previous ones. An INFEASIBLE trial usually means the code crashed or didn't report the metric for those values."],
+  ["Training job log (custom job)", "A failure you should recognize", "INFO  Reading training data from bq://PROJECT_ID.shop.train\nERROR google.api_core.exceptions.Forbidden: 403 Access Denied: Table PROJECT_ID:shop.train:\n      User does not have bigquery.tables.getData permission.\n      principal: service-PROJECT_NUMBER@gcp-sa-aiplatform-cc.iam.gserviceaccount.com\nJob failed: The replica workerpool0-0 exited with a non-zero status of 1.", "The job runs as a service account, not as you. Grant that identity (or, better, a custom service account you pass to the job) BigQuery Data Viewer on the dataset and BigQuery Job User on the project."]
+];
+
+const traps = [
+  "<strong>The job runs as a service account</strong>, not as you: grant it the roles.",
+  "<strong>Save models to AIP_MODEL_DIR</strong> so the platform can find them.",
+  "<strong>Spot VMs need checkpoints</strong> or every preemption restarts training.",
+  "<strong>Fits on one device → data parallel; doesn't → shard or split the model.</strong>",
+  "<strong>Low GPU utilization is usually the input pipeline</strong>, not too few GPUs.",
+  "<strong>TPUs don't fit custom CUDA ops, float64 or heavy dynamic shapes.</strong>",
+  "<strong>More parallel trials finish sooner but search less adaptively.</strong>",
+  "<strong>Use log scale for learning rates</strong> in tuning.",
+  "<strong>Full fine-tuning needs ~8× the memory of 16-bit inference</strong>; LoRA and quantization cut it.",
+  "<strong>Prebuilt containers before custom containers</strong> when the framework is supported.",
+  "<strong>Interpretability requirements drive model choice</strong> in regulated domains."
+];
+
+const questions = [
+  { q: "A bank must explain every credit decision to applicants and regulators. Which modeling choice best fits?", opts: ["The largest deep network available", "An interpretable model (or boosted trees) with per-prediction explanations enabled", "An unsupervised clustering model", "A model with no logging"], a: 1, why: "Interpretability requirements favour inherently interpretable models or models with feature attributions per decision." },
+  { q: "A custom training job fails immediately with a 403 error reading a BigQuery table, although you can query it yourself. Why?", opts: ["BigQuery is down", "The table is too large", "You need a TPU", "The job runs as a service account that lacks BigQuery permissions"], a: 3, why: "Jobs run as a service account, not your user; grant it data read and job permissions." },
+  { q: "Training a model on 8 GPUs is only slightly faster than on 2, and GPU utilization is around 30%. What should you investigate first?", opts: ["The input pipeline: file format, parallel reads, prefetching", "Adding 8 more GPUs", "Switching to a CPU machine", "Lowering the learning rate"], a: 0, why: "Low GPU utilization means the GPUs are starved; fix data loading before scaling hardware." },
+  { q: "Your training uses cheaper Spot VMs and keeps losing hours of progress. What's the fix?", opts: ["Increase the batch size", "Disable logging", "Save checkpoints to Cloud Storage regularly and resume from the latest", "Use a smaller dataset"], a: 2, why: "Spot capacity can be reclaimed; checkpoints let training resume." },
+  { q: "In a hyperparameter tuning job, you increase parallel_trial_count from 2 to 20 with the same max_trial_count. What's the likely effect?", opts: ["Results always improve", "Cost drops tenfold", "The job finishes sooner, but Bayesian optimization learns less from earlier trials, so results may be worse", "The job uses grid search"], a: 2, why: "Parallel trials can't use each other's results, so adaptive search is less effective." },
+  { q: "A transformer model is too large to fit in a single accelerator's memory. Which strategy fits?", opts: ["Model parallelism or sharded data parallelism (FSDP)", "MirroredStrategy on one GPU", "Increasing the batch size", "Running on CPUs only"], a: 0, why: "Splitting parameters across devices is required when one copy doesn't fit." },
+  { q: "A team trains a large standard-op model in JAX, wants high throughput per dollar, and uses large batches. Which accelerator is the strongest candidate?", opts: ["A single CPU VM", "Edge TPU", "No accelerator", "Cloud TPU"], a: 3, why: "TPUs excel at large matrix operations compiled with XLA, especially with JAX." },
+  { q: "A model relies on a custom CUDA kernel and float64 arithmetic. Which hardware is the better choice for training?", opts: ["TPUs", "GPUs", "Edge TPUs", "Cloud Functions"], a: 1, why: "TPUs don't support arbitrary custom CUDA ops and are poor at float64; GPUs are the flexible option." },
+  { q: "A team's training code uses PyTorch with standard libraries. What's the least-effort way to run it as a managed job?", opts: ["A custom training job with a prebuilt PyTorch container and their Python package", "Build and maintain a custom container from scratch", "Run it in a notebook overnight", "Rewrite it for BigQuery ML"], a: 0, why: "Prebuilt containers cover supported frameworks." },
+  { q: "A training job fails with CUDA out of memory. Which change most directly helps without changing the model?", opts: ["Increase the learning rate", "Add more parameter servers", "Reduce per-device batch size and use gradient accumulation (plus mixed precision)", "Use a larger CPU machine type"], a: 2, why: "Smaller batches cut activation memory; accumulation keeps the effective batch." },
+  { q: "Full fine-tuning of a 13B-parameter model with Adam in mixed precision needs roughly how much accelerator memory, before activations?", opts: ["About 26 GB", "About 13 GB", "About 2 TB", "About 200 GB"], a: 3, why: "About 16 bytes per parameter × 13B ≈ 208 GB." },
+  { q: "A team needs 64 H100 GPUs for a three-day job next month and can't risk capacity shortages. What should they use?", opts: ["On-demand Spot VMs without checkpointing", "A reservation (or Dynamic Workload Scheduler for flexible start)", "CPUs", "A notebook"], a: 1, why: "Reservations guarantee capacity; DWS queues jobs for scarce resources." },
+  { q: "An image classifier must be built with only 1,500 labelled images. What approach fits best?", opts: ["Train a large CNN from scratch", "K-means clustering", "Linear regression on pixels", "Transfer learning from a pretrained model (or AutoML image)"], a: 3, why: "Pretrained features need little labelled data." },
+  { q: "After doubling GPUs with data parallelism, accuracy dropped. What's the likely cause?", opts: ["The global batch size doubled without adjusting the learning rate schedule", "GPUs are faulty", "Data parallelism can't be used with PyTorch", "The model must be split"], a: 0, why: "Global batch = per-device batch × devices; tune learning rate accordingly." },
+  { q: "What does a Reduction Server help with?", opts: ["Serving predictions", "Faster gradient all-reduce for multi-node GPU data-parallel training", "Reducing dataset size", "Model compression"], a: 1, why: "It reduces network bottlenecks in synchronization." },
+  { q: "How should a learning rate range from 0.00001 to 0.1 be searched in a tuning job?", opts: ["Linear scale", "Fixed value", "Log scale", "Categorical with two values"], a: 2, why: "Log scaling explores orders of magnitude evenly." },
+  { q: "Training needs system libraries and a Rust component not in any prebuilt image. What should you use?", opts: ["A custom container pushed to Artifact Registry", "A prebuilt container", "BigQuery ML", "AutoML"], a: 0, why: "Custom containers give full environment control." },
+  { q: "Which is a poor fit for TPUs?", opts: ["Large transformer training in JAX", "Large-batch matrix-heavy training", "High-throughput LLM serving", "Models relying on custom CUDA kernels or float64 math"], a: 3, why: "TPUs run XLA-compiled ops in lower precision." },
+  { q: "Which method lets you fine-tune a large open model with far less memory than full fine-tuning?", opts: ["Adding more layers", "Increasing batch size", "LoRA or QLoRA adapters", "Higher learning rate"], a: 2, why: "Only small adapter weights are trained; QLoRA also quantizes the base." }
+];
+
+const scenarios = [
+  {"t": "Custom training job fails at once with 403 on BigQuery", "diag": "Read the principal in the error message.", "cause": "The job's service account lacks BigQuery read and job permissions.", "fix": "Give a dedicated training service account BigQuery Data Viewer and Job User, and pass it to the job."},
+  {"t": "Training job on 8 GPUs is barely faster than on 2", "diag": "Check GPU utilization and the input pipeline with the TensorBoard Profiler.", "cause": "Input-bound: data loading can't keep the GPUs fed (or network-bound all-reduce).", "fix": "Shard to TFRecord or Parquet, parallel reads, prefetch and cache; consider Reduction Server for all-reduce."},
+  {"t": "Spot-VM training keeps restarting from zero", "diag": "Look for preemption events and missing checkpoints.", "cause": "No checkpointing on interruptible capacity.", "fix": "Checkpoint to Cloud Storage regularly and resume from the latest; or use reservations for critical runs."},
+  {"t": "Training job fails with out-of-memory on the GPU", "diag": "Check batch size, sequence length and model size vs device memory.", "cause": "Batch or model too large for the device.", "fix": "Smaller batches with gradient accumulation, mixed precision, gradient checkpointing, FSDP, or a larger-memory accelerator."},
+  {"t": "Job can't start: GPU quota exceeded in the region", "diag": "Read the quota error and region.", "cause": "Insufficient quota or capacity.", "fix": "Request quota, use another region or accelerator type, reservations or Dynamic Workload Scheduler."},
+  {"t": "Tuning job with 50 parallel trials found a worse result than 5 parallel", "diag": "Compare parallelism and search algorithm.", "cause": "Bayesian search learns little when nearly all trials run at once.", "fix": "Lower parallelism for better adaptivity, or accept the trade for speed; raise max trials."},
+  {"t": "Model uses a custom CUDA kernel; team considers TPUs to save cost", "diag": "Check op support in XLA.", "cause": "Custom CUDA ops don't run on TPUs.", "fix": "Stay on GPUs, or rewrite the op in XLA-supported form before moving."},
+  {"t": "Fine-tuning a 13B model fails to fit on one 80 GB GPU", "diag": "Estimate memory: full training needs about 16 bytes per parameter.", "cause": "Roughly 200+ GB needed for full fine-tuning.", "fix": "LoRA/QLoRA, FSDP across GPUs, or a smaller model."},
+  {"t": "Distributed job doubled devices but accuracy dropped", "diag": "Check global batch size and learning rate.", "cause": "Global batch doubled without adjusting the learning rate schedule.", "fix": "Scale the learning rate (with warmup) or keep the global batch constant."},
+  {"t": "Regulators require explanation of each credit decision", "diag": "Review model choice and explanations.", "cause": "Black-box model with no attributions planned.", "fix": "Interpretable model or boosted trees with Explainable AI attributions; document in a model card."}
+];
+
+const cheat = [
+  ["Custom training job", "Your code on managed infrastructure (prebuilt or custom container)"],
+  ["Worker pool 0", "The chief replica of a custom job"],
+  ["AIP_MODEL_DIR", "Where a training job should write the model"],
+  ["Hyperparameter tuning job (Vizier)", "Bayesian, grid or random search over trials"],
+  ["parallel_trial_count", "More = faster wall clock, less adaptive search"],
+  ["cloudml-hypertune", "Helper to report the tuning metric from training code"],
+  ["Spot VMs", "Cheap, preemptible capacity: checkpoint"],
+  ["Dynamic Workload Scheduler", "Queued access to scarce accelerators"],
+  ["TPU", "Matrix-heavy models via XLA; poor for custom ops or float64"],
+  ["MirroredStrategy / MultiWorkerMirroredStrategy", "TensorFlow data parallelism on one / many machines"],
+  ["PyTorch DDP", "Distributed data parallel training"],
+  ["FSDP / ZeRO", "Shard parameters and optimizer state across workers"],
+  ["Model parallelism", "Split a too-large model across devices"],
+  ["Reduction Server", "Faster all-reduce for multi-node GPU training"],
+  ["Ray on Agent Platform", "Managed Ray clusters for distributed Python"],
+  ["Prebuilt training container", "Google-maintained images for TF, PyTorch, sklearn, XGBoost"],
+  ["Custom container", "Your image in Artifact Registry"],
+  ["Python package training", "Upload a source distribution; run a module"],
+  ["Gradient accumulation", "Simulate a big batch with small ones"],
+  ["Mixed precision", "bf16/fp16 compute, less memory, faster"],
+  ["Gradient checkpointing", "Recompute activations to save memory"],
+  ["LoRA / QLoRA", "Train small adapters (on a quantized base)"],
+  ["Transfer learning", "Start from pretrained weights"],
+  ["Reservations", "Guaranteed capacity for planned jobs"],
+  ["Managed Training Clusters", "Reserved, persistent training clusters"],
+  ["Datastream", "Change data capture into BigQuery"],
+  ["Vizier", "Black-box optimization behind tuning jobs"],
+  ["Bayesian optimization", "Default tuning algorithm; learns from earlier trials"],
+  ["max_trial_count", "Upper bound on trials (cost)"]
+];
+
+const cards = [
+  ["Who does a custom job run as?", "A service account"],
+  ["Where should a training job save the model?", "AIP_MODEL_DIR"],
+  ["Default tuning algorithm", "Bayesian optimization (Vizier)"],
+  ["More parallel trials means…", "Faster, but less adaptive search"],
+  ["Model fits on one GPU, want speed", "Data parallelism"],
+  ["Model too big for one GPU", "Model parallelism / FSDP"],
+  ["TPU poor fit", "Custom ops, float64, tiny models"],
+  ["Spot VM must-have", "Checkpoints"],
+  ["Tabular default model", "Gradient-boosted trees"],
+  ["Little labelled image data", "Transfer learning"],
+  ["Least-work custom training", "Prebuilt container"],
+  ["Unusual dependencies", "Custom container"],
+  ["Scarce GPUs for a planned job", "Reservation or Dynamic Workload Scheduler"],
+  ["Full training bytes per parameter (Adam)", "About 16"],
+  ["16-bit inference bytes per parameter", "About 2"],
+  ["GPU OOM fixes", "Smaller batch, mixed precision, checkpointing, FSDP"],
+  ["Doubled devices, accuracy dropped", "Adjust learning rate for global batch"],
+  ["Learning-rate search scale", "Log"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+function mem() {
+  const p = num("gP", 0), g = Math.max(1, num("gG", 80)), o = num("gO", 0) / 100, mode = $("gM").value;
+  const bpp = { inf16: 2, inf8: 1, inf4: 0.5, lora: 2.2, full: 16 }[mode];
+  const need = p * bpp * (1 + o), n = Math.max(1, Math.ceil(need / g));
+  const out = [];
+  out.push("<p>Estimated memory: <strong>" + need.toFixed(1) + " GB</strong> (" + p + "B parameters × " + bpp + " bytes + " + Math.round(o * 100) + "% overhead). With " + g + " GB accelerators: at least <strong>" + n + "</strong>.</p>");
+  if (n === 1) out.push("<p><strong>Fits on one device.</strong> To go faster, use data parallelism (DDP, MirroredStrategy); every replica holds the whole model.</p>");
+  else if (mode === "full" || mode === "lora") out.push("<p><strong>Doesn't fit on one device.</strong> Use sharded data parallel (FSDP / ZeRO) or model parallelism (tensor or pipeline), or switch to LoRA or quantization to cut memory.</p>");
+  else out.push("<p><strong>Doesn't fit on one device.</strong> Quantize further, use tensor parallelism across devices in a serving runtime (for example vLLM), or choose larger-memory accelerators.</p>");
+  $("gOut").innerHTML = out.join("");
+}
+wire([[["gP", "gM", "gG", "gO"], mem]]);
+</script>
+</body>
+</html>

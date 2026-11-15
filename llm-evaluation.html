@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluating LLMs and Agents on Google Cloud</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Gen AI · 2.3, 6.2</span></div>
+<h1>Evaluating LLMs and agents</h1>
+<p class="subtitle">How to tell whether a gen AI system is good enough and stays that way: building evaluation datasets, computation-based vs model-based (LLM-as-a-judge) metrics, judge biases and how to control them, pointwise vs pairwise and rubric-based evaluation, Agent Platform Evals, agent trajectory metrics, safety evaluation, online monitoring, and statistics for comparing versions. Includes a win-rate confidence calculator.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#whyeval">Why LLM evaluation is different</a></li>
+    <li><a href="#dataset">Building the evaluation dataset</a></li>
+    <li><a href="#metrictypes">Computation-based vs model-based metrics</a></li>
+    <li><a href="#pointwise">Pointwise, pairwise and rubrics</a></li>
+    <li><a href="#judges">LLM-as-a-judge: biases and how to control them</a></li>
+    <li><a href="#evals">Agent Platform Evals</a></li>
+    <li><a href="#agenteval">Evaluating agents: trajectories and tool use</a></li>
+    <li><a href="#safetyeval">Safety evaluation and red-teaming</a></li>
+    <li><a href="#online">Online evaluation and monitoring</a></li>
+    <li><a href="#ci">Regression testing in CI/CD</a></li>
+    <li><a href="#wincalc">Win-rate and judge-agreement calculator</a></li>
+    <li><a href="#lab">Lab: evaluate two prompt versions and an agent</a></li>
+    <li><a href="#chooser">"Which evaluation method?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (22 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="whyeval">1. Why LLM evaluation is different</h2>
+<p>Classic models have one right label per input. Generative outputs are open-ended: many answers can be right, wording varies run to run, and quality has several dimensions (correct, grounded, safe, helpful, on-format). So evaluation combines several kinds of metric over a <strong>fixed, versioned dataset</strong>, and runs on every change.</p>
+<table>
+  <tr><th>When</th><th>Purpose</th></tr>
+  <tr><td>Model or tier selection</td><td>Which model meets the quality bar at the lowest cost?</td></tr>
+  <tr><td>Prompt and RAG iteration</td><td>Did this change help or hurt?</td></tr>
+  <tr><td>Before every release (CI)</td><td>Regression gate: prompt, model version, retrieval or tool changes</td></tr>
+  <tr><td>After tuning</td><td>Tuned model vs base model with prompting, on held-out data</td></tr>
+  <tr><td>In production</td><td>Online monitoring of sampled traffic, user feedback, safety</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="dataset">2. Building the evaluation dataset</h2>
+<ul>
+  <li><strong>Representative</strong>: sample real user questions (after removing PII), covering intents, languages and difficulty.</li>
+  <li><strong>Edge and adversarial cases</strong>: out-of-scope questions, ambiguous requests, prompt-injection attempts, questions the documents don't answer.</li>
+  <li><strong>References where possible</strong>: expected answers, expected source documents (for RAG), expected tool calls (for agents).</li>
+  <li><strong>Size</strong>: dozens for quick iteration, hundreds for release decisions; more for small differences (see the <a href="#wincalc">win-rate calculator</a>).</li>
+  <li><strong>Versioned and frozen</strong>: store in Cloud Storage or BigQuery; never tune prompts on the final test split.</li>
+  <li>Add every production failure you find to the dataset (it becomes a regression test).</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="metrictypes">3. Computation-based vs model-based metrics</h2>
+<table>
+  <tr><th>Type</th><th>Examples</th><th>Strengths</th><th>Weaknesses</th></tr>
+  <tr><td><strong>Computation-based</strong></td><td>Exact match, BLEU, ROUGE, JSON schema validity, tool-call validity and parameter match, regex checks</td><td>Cheap, fast, deterministic</td><td>Need references; penalize valid paraphrases; miss meaning</td></tr>
+  <tr><td><strong>Model-based (LLM-as-a-judge, autorater)</strong></td><td>Fluency, coherence, groundedness, instruction following, safety, helpfulness, custom criteria</td><td>Judge meaning without references; scale</td><td>Biased, costs tokens, must be validated against humans</td></tr>
+  <tr><td><strong>Human evaluation</strong></td><td>Expert ratings, side-by-side preferences</td><td>The ground truth for subjective quality</td><td>Slow, expensive, inconsistent between raters</td></tr>
+</table>
+<table>
+  <tr><th>Metric</th><th>Good for</th></tr>
+  <tr><td><strong>Exact match</strong></td><td>Classification labels, short factual answers, extracted fields</td></tr>
+  <tr><td><strong>BLEU</strong></td><td>N-gram precision against references: translation</td></tr>
+  <tr><td><strong>ROUGE</strong> (ROUGE-L and variants)</td><td>N-gram / longest-common-subsequence recall: summarization against references</td></tr>
+  <tr><td>Schema validity</td><td>Structured output</td></tr>
+  <tr><td>Groundedness</td><td>RAG: answer supported by context</td></tr>
+  <tr><td>Instruction following, fluency, coherence, safety</td><td>Open-ended generation</td></tr>
+</table>
+<div class="warn">High ROUGE doesn't mean a good summary: a summary can share many words with the reference and still get the key fact wrong. Use overlap metrics as a cheap signal alongside model-based or human judgement.</div>
+
+<!-- ============================================================ -->
+<h2 id="pointwise">4. Pointwise, pairwise and rubrics</h2>
+<table>
+  <tr><th>Mode</th><th>How</th><th>Use when</th></tr>
+  <tr><td><strong>Pointwise</strong></td><td>Judge scores one response on a scale (for example 1–5) against criteria</td><td>Absolute quality tracking, thresholds, monitoring</td></tr>
+  <tr><td><strong>Pairwise</strong></td><td>Judge picks the better of two responses (baseline vs candidate) for the same prompt; report <strong>win rate</strong></td><td>Comparing two models, prompts or settings; more sensitive to small differences</td></tr>
+  <tr><td><strong>Rubrics</strong></td><td>A list of specific, checkable criteria ("mentions the 30-day limit", "doesn't promise refunds for shipping")</td><td>Making judgements consistent and explainable</td></tr>
+  <tr><td><strong>Adaptive rubrics</strong></td><td>Agent Platform Evals generates prompt-specific rubrics, then checks responses against them</td><td>Diverse prompts where one generic rubric is too vague</td></tr>
+</table>
+<div class="key">"Which of two prompt versions is better for open-ended answers with no single reference?" → <strong>pairwise model-based evaluation</strong> on a fixed dataset, calibrated against human ratings.</div>
+
+<!-- ============================================================ -->
+<h2 id="judges">5. LLM-as-a-judge: biases and how to control them</h2>
+<table>
+  <tr><th>Bias</th><th>What happens</th><th>Mitigation</th></tr>
+  <tr><td><strong>Position bias</strong></td><td>Pairwise judge prefers the first (or second) response</td><td>Evaluate both orders and average or count only consistent wins; randomize order</td></tr>
+  <tr><td><strong>Verbosity bias</strong></td><td>Longer answers win regardless of quality</td><td>Rubrics that reward concision; length-controlled comparisons; check length vs score correlation</td></tr>
+  <tr><td><strong>Self-preference</strong></td><td>A judge favours outputs from its own model family</td><td>Use a different (often stronger) judge model; validate with humans</td></tr>
+  <tr><td>Leniency / score compression</td><td>Everything gets 4/5</td><td>Clear rubrics with anchored examples per score; prefer pairwise or binary checks</td></tr>
+  <tr><td>Inconsistency</td><td>Same input, different score</td><td>Low judge temperature, multiple samples, explanations before scores</td></tr>
+  <tr><td>Domain blind spots</td><td>Judge lacks domain knowledge (medical, legal)</td><td>Give references or context to the judge; expert human review</td></tr>
+</table>
+<h3>Validating the judge</h3>
+<ol>
+  <li>Have humans label a sample (for example 100–200 items) with the same rubric.</li>
+  <li>Measure agreement between judge and humans: accuracy, and <strong>Cohen's kappa</strong> (agreement corrected for chance), or correlation for scores.</li>
+  <li>Iterate on the judge prompt and rubric until agreement is acceptable; recheck when the judge model changes.</li>
+</ol>
+<p>Kappa interpretation (rough): below 0.4 weak, 0.4–0.6 moderate, 0.6–0.8 substantial, above 0.8 strong. Use the <a href="#wincalc">calculator</a> below.</p>
+
+<!-- ============================================================ -->
+<h2 id="evals">6. Agent Platform Evals</h2>
+<p>Agent Platform Evals (formerly the Gen AI evaluation service) runs evaluations of models, prompts, RAG systems and agents.</p>
+<table>
+  <tr><th>Capability</th><th>What to know</th></tr>
+  <tr><td>Datasets</td><td>Prompts, responses (or generate them during the run), references, context, expected trajectories</td></tr>
+  <tr><td>Computation-based metrics</td><td>Exact match, BLEU, ROUGE, tool-call validity, tool name and parameter match</td></tr>
+  <tr><td>Model-based metrics</td><td>Prebuilt pointwise and pairwise templates (fluency, coherence, safety, groundedness, instruction following, summarization and question-answering quality) and custom criteria</td></tr>
+  <tr><td>Adaptive rubrics</td><td>Per-prompt rubrics generated and checked automatically</td></tr>
+  <tr><td>Agent metrics</td><td>Trajectory and tool-use metrics; multi-turn task success</td></tr>
+  <tr><td>Results</td><td>Per-row scores and explanations, summary tables; logged to Experiments for comparison over time</td></tr>
+  <tr><td>Production</td><td>Online evaluation monitors on sampled live traffic; user and environment simulators for agents</td></tr>
+</table>
+<pre><code># Sketch with the Agent Platform SDK; module and metric names vary by release.
+import pandas as pd
+import vertexai
+from vertexai.evaluation import EvalTask, PointwiseMetric, MetricPromptTemplateExamples
+
+vertexai.init(project="PROJECT_ID", location="us-central1")
+data = pd.DataFrame({"prompt": prompts, "response": responses, "reference": references})
+task = EvalTask(dataset=data,
+                metrics=["exact_match", "rouge_l_sum",
+                         MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS],
+                experiment="support-bot-eval")
+result = task.evaluate()
+print(result.summary_metrics)</code></pre>
+<div class="note">SDK surfaces for evaluation move between modules across releases, and some modes (for example pairwise) are only in some client libraries. Learn the concepts: dataset, metrics (computation and model-based), pointwise vs pairwise, experiments for tracking.</div>
+
+<!-- ============================================================ -->
+<h2 id="agenteval">7. Evaluating agents: trajectories and tool use</h2>
+<p>For agents, the final answer isn't enough: the <strong>trajectory</strong> (sequence of tool calls) shows whether the agent got there safely and efficiently.</p>
+<table>
+  <tr><th>Metric</th><th>Passes when</th></tr>
+  <tr><td><strong>Trajectory exact match</strong></td><td>Tool calls exactly equal the reference sequence</td></tr>
+  <tr><td><strong>In-order match</strong></td><td>All reference calls appear in order; extra calls allowed</td></tr>
+  <tr><td><strong>Any-order match</strong></td><td>All reference calls appear, in any order</td></tr>
+  <tr><td><strong>Trajectory precision</strong></td><td>Share of predicted calls that are in the reference (penalizes unnecessary calls)</td></tr>
+  <tr><td><strong>Trajectory recall</strong></td><td>Share of reference calls that the agent made (penalizes missed steps)</td></tr>
+  <tr><td>Single tool use</td><td>A specific required tool was called</td></tr>
+  <tr><td>Tool-call validity and parameter match</td><td>Calls are well-formed with correct arguments</td></tr>
+  <tr><td>Final response quality</td><td>Model-based metrics on the answer</td></tr>
+  <tr><td>Multi-turn task success</td><td>The user's goal was achieved over a whole conversation (often with a simulated user)</td></tr>
+</table>
+<div class="mn"><strong>Exact</strong> = same calls, same order, nothing extra. <strong>In-order</strong> = same order, extras OK. <strong>Any-order</strong> = all present. <strong>Precision</strong> punishes extras; <strong>recall</strong> punishes misses.</div>
+
+<!-- ============================================================ -->
+<h2 id="safetyeval">8. Safety evaluation and red-teaming</h2>
+<ul>
+  <li><strong>Red-teaming</strong>: deliberately try jailbreaks, prompt injection (direct and through documents or tools), harmful requests, data exfiltration and PII leakage before launch.</li>
+  <li>Safety metrics: model-based safety scores, policy-violation rates, refusal rates on harmful prompts, over-refusal rates on benign prompts.</li>
+  <li>Track <strong>both</strong> under-blocking (harmful content gets through) and over-blocking (legitimate users refused).</li>
+  <li>Fairness: compare quality and refusal rates across languages, dialects and user groups.</li>
+  <li>Controls under test: safety filters, Model Armor templates, system instructions, tool permissions.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="online">9. Online evaluation and monitoring</h2>
+<table>
+  <tr><th>Signal</th><th>How</th></tr>
+  <tr><td>Sampled judge scores</td><td>Online evaluation monitors run metrics on a sample of live requests</td></tr>
+  <tr><td>User feedback</td><td>Thumbs up/down, edits, escalations to humans, task completion</td></tr>
+  <tr><td>Operational</td><td>Latency (time to first token, total), token usage, cost, error and 429 rates, safety blocks</td></tr>
+  <tr><td>Tracing</td><td>Per-request traces of retrieval and tool calls (Cloud Trace, Agent Runtime tracing)</td></tr>
+  <tr><td>A/B tests</td><td>Split traffic between prompt or model versions and compare business metrics</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ci">10. Regression testing in CI/CD</h2>
+<ol>
+  <li>Store prompts, model version, retrieval settings and tools in version control.</li>
+  <li>On every change, a pipeline (Cloud Build or a Pipelines run) generates responses for the frozen evaluation set.</li>
+  <li>Compute computation-based checks (schema, exact match, tool calls) and model-based metrics; compare with the current production baseline.</li>
+  <li><strong>Gate</strong>: block the release if key metrics drop beyond a tolerance or safety checks fail.</li>
+  <li>Log the run to Experiments for history; pin model versions so upgrades are deliberate and evaluated.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="wincalc">11. Win-rate and judge-agreement calculator</h2>
+<p><strong>Pairwise win rate</strong> with a 95% Wilson interval (ties excluded), and <strong>Cohen's kappa</strong> between the judge and human labels.</p>
+<div class="card">
+  <div class="tool">
+    <label>Candidate wins<br><input id="wW" type="number" min="0" value="58"></label>
+    <label>Baseline wins<br><input id="wL" type="number" min="0" value="42"></label>
+    <label>Ties<br><input id="wT" type="number" min="0" value="20"></label>
+  </div>
+  <div class="outbox" id="wOut"></div>
+  <div class="tool">
+    <label>Judge pass, human pass<br><input id="kA" type="number" min="0" value="70"></label>
+    <label>Judge pass, human fail<br><input id="kB" type="number" min="0" value="12"></label>
+    <label>Judge fail, human pass<br><input id="kC" type="number" min="0" value="8"></label>
+    <label>Judge fail, human fail<br><input id="kD" type="number" min="0" value="30"></label>
+  </div>
+  <div class="outbox" id="kOut"></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">12. Lab: evaluate two prompt versions and an agent</h2>
+<ol>
+  <li>Build a 50-row dataset from realistic questions with references (and expected sources for RAG).</li>
+  <li>Run prompt A and prompt B. Compute exact match or ROUGE where references fit, and a pointwise groundedness or instruction-following metric.</li>
+  <li>Run a pairwise comparison of A vs B; then swap the response order and rerun. How many verdicts flip (position bias)?</li>
+  <li>Label 40 rows yourself; compute judge–human kappa with the calculator.</li>
+  <li>For an ADK agent, write expected tool trajectories for 10 tasks; compute exact, in-order and any-order match, precision and recall.</li>
+  <li>Wire the evaluation into a Cloud Build step that fails when groundedness drops by more than a set tolerance.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="chooser">13. "Which evaluation method?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">14. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>Agent Platform Evals summary (simplified)</code><span class="smp-what">Pairwise comparison of two prompt versions</span></summary><pre><code>metric                       candidate (grounded)   baseline (ungrounded)
+groundedness (pointwise, 1-5)        4.6                    3.1
+pairwise_quality win rate            0.71                   0.22   (ties 0.07)
+rouge_l                              0.48                   0.41
+avg latency (s)                      1.9                    1.2</code></pre><p class="smp-read"><strong>What to look at:</strong> The grounded version wins 71% of pairwise judgements and is much more grounded, at the cost of 0.7 s more latency from retrieval. Before trusting the judge, spot-check its decisions against human labels on a sample.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">15. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">16. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. pairwise, judge bias, ROUGE, trajectory, rubric…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">17. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">18. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Open-ended outputs need model-based or human evaluation</strong>; exact match and BLEU alone mislead.</li>
+<li><strong>Pairwise for comparisons, pointwise for tracking.</strong></li>
+<li><strong>Validate the judge against humans</strong> before trusting it; measure agreement with kappa.</li>
+<li><strong>Swap order in pairwise judging</strong> to cancel position bias.</li>
+<li><strong>Long answers aren't better answers</strong>: watch verbosity bias.</li>
+<li><strong>Don't let a model judge itself</strong> when you can avoid it.</li>
+<li><strong>Small win margins on small sets are noise</strong>: compute an interval.</li>
+<li><strong>Evaluate agent trajectories, not just final answers.</strong></li>
+<li><strong>Precision punishes extra tool calls; recall punishes missed ones.</strong></li>
+<li><strong>Frozen, versioned datasets</strong> with edge cases and past failures; run in CI on every change.</li>
+<li><strong>Pin model versions</strong> so upgrades go through evaluation.</li>
+<li><strong>Safety evaluation measures over-refusal too</strong>, not just harmful content.</li>
+<li><strong>High ROUGE can hide wrong facts.</strong></li>
+<li><strong>Offline evaluation doesn't replace online monitoring</strong> and user feedback.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">19. Practice quiz (22 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="rag-failure-modes.html">← RAG and its failure modes</a><a href="data-notebooks-experiments.html">Next: Data, Feature Store, notebooks, experiments →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Short extracted fields with one right answer", "Exact match (computation-based)", "Cheap and deterministic.", "An LLM judge"],
+  ["Summaries vs human-written references, cheap signal", "ROUGE", "Overlap recall against references.", "Exact match"],
+  ["Translations vs references", "BLEU", "N-gram precision for translation.", "Perplexity"],
+  ["Open-ended answers, compare two prompts", "Pairwise model-based evaluation (win rate)", "Sensitive to small differences without references.", "BLEU"],
+  ["Track absolute quality over time", "Pointwise model-based metric with a rubric", "A stable score per response.", "Pairwise only"],
+  ["RAG answer must stick to retrieved sources", "Groundedness metric (and check grounding)", "Measures support by context.", "ROUGE"],
+  ["Judge prefers whichever answer comes first", "Swap order and count only consistent wins", "Removes position bias.", "Using a bigger judge only"],
+  ["Judge rewards long answers", "Rubrics rewarding concision; check score vs length", "Controls verbosity bias.", "Removing the rubric"],
+  ["Is the judge trustworthy?", "Compare with human labels: agreement and Cohen's kappa", "Validates the judge.", "Trusting the judge model's size"],
+  ["Agent must call tools in a specific order, extras allowed", "In-order trajectory match", "Order matters, extras OK.", "Any-order match"],
+  ["Agent makes unnecessary tool calls", "Trajectory precision", "Penalizes extra calls.", "Trajectory recall"],
+  ["Agent sometimes skips a required step", "Trajectory recall (or single tool use)", "Penalizes missed calls.", "Trajectory precision"],
+  ["Gate every prompt change before release", "Frozen eval set in CI with thresholds vs baseline", "Catches regressions automatically.", "Manual spot checks"],
+  ["Quality in production after launch", "Online evaluation monitors on sampled traffic plus user feedback", "Live signal.", "Only the pre-launch test set"],
+  ["Judge for a model family's own outputs", "A different judge model, validated with humans", "Avoids self-preference.", "The same model judging itself"]
+];
+
+const samples = [
+  ["Agent Platform Evals summary (simplified)", "Pairwise comparison of two prompt versions", "metric                       candidate (grounded)   baseline (ungrounded)\ngroundedness (pointwise, 1-5)        4.6                    3.1\npairwise_quality win rate            0.71                   0.22   (ties 0.07)\nrouge_l                              0.48                   0.41\navg latency (s)                      1.9                    1.2", "The grounded version wins 71% of pairwise judgements and is much more grounded, at the cost of 0.7 s more latency from retrieval. Before trusting the judge, spot-check its decisions against human labels on a sample."]
+];
+
+const traps = [
+  "<strong>Open-ended outputs need model-based or human evaluation</strong>; exact match and BLEU alone mislead.",
+  "<strong>Pairwise for comparisons, pointwise for tracking.</strong>",
+  "<strong>Validate the judge against humans</strong> before trusting it; measure agreement with kappa.",
+  "<strong>Swap order in pairwise judging</strong> to cancel position bias.",
+  "<strong>Long answers aren't better answers</strong>: watch verbosity bias.",
+  "<strong>Don't let a model judge itself</strong> when you can avoid it.",
+  "<strong>Small win margins on small sets are noise</strong>: compute an interval.",
+  "<strong>Evaluate agent trajectories, not just final answers.</strong>",
+  "<strong>Precision punishes extra tool calls; recall punishes missed ones.</strong>",
+  "<strong>Frozen, versioned datasets</strong> with edge cases and past failures; run in CI on every change.",
+  "<strong>Pin model versions</strong> so upgrades go through evaluation.",
+  "<strong>Safety evaluation measures over-refusal too</strong>, not just harmful content.",
+  "<strong>High ROUGE can hide wrong facts.</strong>",
+  "<strong>Offline evaluation doesn't replace online monitoring</strong> and user feedback."
+];
+
+const questions = [
+  { q: "You must compare two prompt templates for open-ended answers where there's no single correct reference. Which evaluation approach fits best?", opts: ["Exact match against one reference answer", "Pairwise LLM-as-a-judge evaluation on a fixed dataset, spot-checked against human ratings", "Training loss", "Accuracy"], a: 1, why: "Pairwise model-based evaluation handles open-ended outputs; human spot checks calibrate the judge." },
+  { q: "A production Gemini app must be regression-tested every time the prompt or the model version changes. What's the best practice?", opts: ["Test a few prompts by hand", "Rely on user complaints", "Increase the safety threshold", "Run a fixed evaluation dataset with computation and judge-based metrics before each change goes live, and pin model versions"], a: 3, why: "A versioned evaluation set run on every change catches regressions; pinned versions avoid surprise model updates." },
+  { q: "An extraction prompt returns invoice numbers. Which metric is most appropriate?", opts: ["Exact match against the reference value", "ROUGE-L", "A pairwise judge", "BLEU"], a: 0, why: "Fields with one right answer suit exact match." },
+  { q: "You need a cheap, automatic signal for summaries against human-written reference summaries. Which metric?", opts: ["Exact match", "Trajectory precision", "ROUGE", "Cohen's kappa"], a: 2, why: "ROUGE measures overlap with references (recall-oriented)." },
+  { q: "A pairwise judge prefers whichever response is shown first. How do you mitigate this?", opts: ["Always show the candidate first", "Use exact match", "Evaluate each pair in both orders and count only consistent wins (or average)", "Lower the judge's max tokens"], a: 2, why: "Swapping order cancels position bias." },
+  { q: "Judge scores correlate strongly with response length, even when shorter answers are better. What's this and the fix?", opts: ["Verbosity bias; add concision criteria to the rubric and check score against length", "Position bias; swap order", "Self-preference; change the model family", "Overfitting; add dropout"], a: 0, why: "Judges often reward length; rubrics and checks counter it." },
+  { q: "How should you establish that an LLM judge can be trusted for a task?", opts: ["Use the largest available model", "Run it twice and check it agrees with itself", "Check its BLEU score", "Compare its labels with human labels on a sample and measure agreement such as Cohen's kappa"], a: 3, why: "Human agreement is the validation." },
+  { q: "Judge and human labels agree 85% of the time, but 80% of items are 'pass'. Why report Cohen's kappa?", opts: ["Kappa is always higher than accuracy", "Kappa corrects for agreement expected by chance, which is high when one label dominates", "Kappa measures latency", "Kappa replaces human labels"], a: 1, why: "Raw agreement can look good by chance alone." },
+  { q: "A candidate prompt wins 53 of 100 decisive pairwise comparisons. What should you conclude?", opts: ["The difference isn't statistically clear; the interval includes 50%, so add data or treat as a tie", "The candidate is clearly better", "The baseline is clearly better", "Ties should be counted as wins"], a: 0, why: "With n=100, the 95% interval is roughly 43–63%." },
+  { q: "An agent must call lookup_customer then create_ticket in that order; an extra logging call is acceptable. Which metric fits?", opts: ["Trajectory exact match", "Any-order match", "In-order trajectory match", "ROUGE"], a: 2, why: "In-order allows extras but requires the order." },
+  { q: "An agent reaches correct answers but often makes redundant tool calls that cost money. Which metric exposes this?", opts: ["Trajectory recall", "Exact match on the final answer", "BLEU", "Trajectory precision"], a: 3, why: "Precision drops with unnecessary calls." },
+  { q: "An agent sometimes skips the verify_identity step before account changes. Which metric catches it?", opts: ["Trajectory precision", "Trajectory recall (or a single tool use check for verify_identity)", "ROUGE", "Fluency"], a: 1, why: "Recall drops when expected calls are missing." },
+  { q: "What's the best practice for regression testing a production gen AI app?", opts: ["Test five prompts by hand before release", "Wait for user complaints", "Evaluate once at launch", "Run a frozen, versioned evaluation set with metrics and thresholds in CI on every prompt, model, retrieval or tool change"], a: 3, why: "Automated gates catch regressions." },
+  { q: "Which evaluation approach checks a RAG answer is supported by retrieved documents?", opts: ["Groundedness (model-based) or the check grounding API", "BLEU against the question", "Exact match on the document ID", "Perplexity"], a: 0, why: "Groundedness measures support by context." },
+  { q: "To compare a tuned model with the base model, what should you evaluate on?", opts: ["The tuning dataset", "A held-out set not used for tuning, comparing against the base model with good prompting", "Random internet text", "The validation loss only"], a: 1, why: "Held-out data and a strong baseline show the real gain." },
+  { q: "Stricter safety settings reduced harmful outputs but legitimate users are blocked more often. What was missing from evaluation?", opts: ["BLEU", "Trajectory metrics", "Measuring over-refusal on benign prompts alongside harmful-content rates", "Latency"], a: 2, why: "Safety evaluation must track both directions." },
+  { q: "A Gemini judge evaluates outputs from Gemini and another provider's model. What risk should you control?", opts: ["Self-preference bias; validate with humans or use a different judge", "Position bias only", "No risk", "Underfitting"], a: 0, why: "Judges may favour their own family's style." },
+  { q: "Which statement about ROUGE is correct?", opts: ["It measures factual accuracy", "It needs no reference", "It's designed for tool calls", "A high score can still hide a wrong key fact, so pair it with meaning-aware checks"], a: 3, why: "Overlap doesn't equal correctness." },
+  { q: "Which helps make a pointwise judge more consistent?", opts: ["Higher judge temperature", "Removing the rubric", "Specific rubrics with anchored examples, low judge temperature and explanation before the score", "Fewer evaluation rows"], a: 2, why: "Clear criteria and low randomness reduce variance." },
+  { q: "After launch, how do you keep tracking quality of a gen AI app?", opts: ["Re-run the launch test set yearly", "Online evaluation monitors on sampled traffic, user feedback, and operational metrics", "Only watch CPU usage", "Turn off logging to save cost"], a: 1, why: "Production traffic shifts; monitor continuously." },
+  { q: "How should evaluation of multi-turn agents be done at scale before launch?", opts: ["Single-turn exact match", "BLEU on the first reply", "Simulated users running scenarios, scored on multi-turn task success and trajectories", "Only human testers on launch day"], a: 2, why: "User simulators make multi-turn evaluation repeatable." },
+  { q: "Which is a good habit for evaluation datasets?", opts: ["Delete hard examples to raise scores", "Add every production failure as a new test case", "Tune prompts on the final test split", "Keep the dataset unversioned"], a: 1, why: "Past failures become regression tests." }
+];
+
+const scenarios = [
+  {"t": "Prompt B beats A 62% of the time when B is shown first, 48% when second", "diag": "Compare win rates by presentation order.", "cause": "Position bias in the pairwise judge.", "fix": "Evaluate both orders; count consistent wins or average; randomize order."},
+  {"t": "Every response gets 4/5 from the judge", "diag": "Look at score distribution and rubric.", "cause": "Vague rubric, leniency.", "fix": "Specific rubric criteria with anchored examples per score, or binary checks; pairwise for comparisons."},
+  {"t": "Judge scores rise while users complain more", "diag": "Compare judge labels with fresh human labels.", "cause": "Judge misaligned with users (verbosity bias or wrong criteria).", "fix": "Recalibrate on human labels, measure kappa, update rubric; add user feedback signals."},
+  {"t": "ROUGE improved after a prompt change, but summaries miss key numbers", "diag": "Read samples; add a factual consistency check.", "cause": "Overlap metrics don't capture correctness.", "fix": "Add model-based or rubric checks for key facts alongside ROUGE."},
+  {"t": "Agent reaches the right answer but calls the payments API twice", "diag": "Inspect trajectories.", "cause": "Final-answer-only evaluation hides bad trajectories.", "fix": "Add trajectory precision and exact/in-order match; guard tools against duplicate calls."},
+  {"t": "Model upgrade passed a 10-question smoke test, then regressed in production", "diag": "Check dataset size and coverage.", "cause": "Too small and unrepresentative evaluation set.", "fix": "Grow a representative, versioned eval set with edge cases and past failures; gate in CI."},
+  {"t": "New prompt wins 53 of 100 pairwise comparisons", "diag": "Compute a confidence interval.", "cause": "The difference may be noise.", "fix": "Wilson interval includes 50%: add more examples or treat as a tie."},
+  {"t": "Safety filters tightened; harmful outputs fell, but support tickets rose", "diag": "Measure over-refusal on benign prompts.", "cause": "Over-blocking legitimate requests.", "fix": "Track both under- and over-blocking; tune thresholds and Model Armor templates; test across user groups."},
+  {"t": "Medical answers judged 'excellent' by the autorater contain errors", "diag": "Expert review of a sample.", "cause": "Judge lacks domain knowledge.", "fix": "Give the judge references; expert human evaluation for high-risk domains."}
+];
+
+const cheat = [
+  ["LLM-as-a-judge (autorater)", "A model scores outputs against criteria"],
+  ["Pointwise vs pairwise evaluation", "Score one output vs pick the better of two"],
+  ["Agent Platform Evals", "Gen AI evaluation service: computation and model-based metrics"],
+  ["BLEU / ROUGE", "Overlap metrics against reference text"],
+  ["Computation-based metric", "Deterministic: exact match, BLEU, ROUGE, schema, tool-call checks"],
+  ["Model-based metric", "A judge model scores against criteria"],
+  ["Exact match", "Output equals the reference"],
+  ["ROUGE-L", "Longest-common-subsequence overlap"],
+  ["Pointwise", "Score one response"],
+  ["Pairwise", "Choose the better of two; win rate"],
+  ["Win rate", "Share of comparisons the candidate wins"],
+  ["Rubric", "Specific checkable criteria"],
+  ["Adaptive rubrics", "Prompt-specific rubrics generated automatically"],
+  ["Position bias", "Judge favours an answer's position"],
+  ["Verbosity bias", "Judge favours longer answers"],
+  ["Self-preference bias", "Judge favours its own family's outputs"],
+  ["Cohen's kappa", "Agreement corrected for chance"],
+  ["Wilson interval", "Confidence interval for a proportion"],
+  ["Trajectory", "Sequence of an agent's tool calls"],
+  ["Trajectory exact match", "Identical calls and order"],
+  ["In-order match", "Reference calls in order, extras allowed"],
+  ["Any-order match", "All reference calls present"],
+  ["Trajectory precision", "Predicted calls that are expected"],
+  ["Trajectory recall", "Expected calls that were made"],
+  ["Single tool use", "A specific tool was called"],
+  ["Multi-turn task success", "Goal achieved over a conversation"],
+  ["User simulator", "Synthetic user for multi-turn agent evaluation"],
+  ["Online evaluation monitor", "Metrics on sampled live traffic"],
+  ["Red-teaming", "Adversarial testing before launch"],
+  ["Over-refusal", "Benign requests wrongly blocked"],
+  ["Regression gate", "Block release on metric drops"],
+  ["Experiments", "Track evaluation runs over time"],
+  ["Groundedness", "Claims supported by provided context"],
+  ["Instruction following", "Response obeys the prompt's constraints"]
+];
+
+const cards = [
+  ["Compare two prompt versions", "Pairwise evaluation (LLM-as-a-judge)"],
+  ["Fixed-answer extraction metric", "Exact match"],
+  ["Summarization overlap metric", "ROUGE"],
+  ["Translation overlap metric", "BLEU"],
+  ["Compare two prompts, open-ended", "Pairwise judge, win rate"],
+  ["Fix position bias", "Swap order, count consistent wins"],
+  ["Fix verbosity bias", "Concision in rubric; length checks"],
+  ["Avoid self-preference", "Different judge model"],
+  ["Validate a judge", "Human labels and Cohen's kappa"],
+  ["Kappa above 0.6", "Substantial agreement"],
+  ["Extra tool calls", "Low trajectory precision"],
+  ["Missed tool calls", "Low trajectory recall"],
+  ["Order matters, extras allowed", "In-order match"],
+  ["53/100 pairwise wins", "Probably not significant"],
+  ["When to run evaluations", "Every prompt, model, retrieval or tool change"],
+  ["Live quality signal", "Online monitors and user feedback"],
+  ["Safety evaluation tracks…", "Under-blocking and over-blocking"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+function wilson(k, n) {
+  if (n <= 0) return [NaN, NaN];
+  const z = 1.96, p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return [(c - m) / d, (c + m) / d];
+}
+function win() {
+  const w = num("wW", 0), l = num("wL", 0), t = num("wT", 0), n = w + l;
+  const [lo, hi] = wilson(w, n);
+  const out = [];
+  out.push("<p>Win rate (ties excluded): <strong>" + pct(w / n) + "</strong>, 95% interval <strong>" + pct(lo) + " to " + pct(hi) + "</strong> over " + n + " decisive comparisons (" + t + " ties).</p>");
+  if (lo > 0.5) out.push("<p><strong>Candidate is better</strong>: the whole interval is above 50%.</p>");
+  else if (hi < 0.5) out.push("<p><strong>Baseline is better</strong>: the whole interval is below 50%.</p>");
+  else out.push("<p><strong>Not conclusive</strong>: the interval includes 50%. Add more rows (the interval narrows roughly with the square root of the count), or accept that the difference is small.</p>");
+  $("wOut").innerHTML = out.join("");
+}
+function kappa() {
+  const a = num("kA", 0), b = num("kB", 0), c = num("kC", 0), d = num("kD", 0), n = a + b + c + d;
+  const po = (a + d) / n, pe = ((a + b) * (a + c) + (c + d) * (b + d)) / (n * n), k = (po - pe) / (1 - pe);
+  const label = !isFinite(k) ? "n/a" : k < 0.4 ? "weak" : k < 0.6 ? "moderate" : k < 0.8 ? "substantial" : "strong";
+  $("kOut").innerHTML = "<p>Raw agreement <strong>" + pct(po) + "</strong>; chance agreement " + pct(pe) + "; <strong>Cohen's kappa " + (isFinite(k) ? k.toFixed(2) : "n/a") + "</strong> (" + label + ").</p>" +
+    (b > c * 1.5 ? "<p>The judge passes many items humans fail: it's too lenient. Tighten the rubric or add anchored examples.</p>" : c > b * 1.5 ? "<p>The judge fails many items humans pass: it's too strict.</p>" : "<p>Disagreements are balanced between lenient and strict.</p>");
+}
+wire([[["wW", "wL", "wT"], win], [["kA", "kB", "kC", "kD"], kappa]]);
+</script>
+</body>
+</html>

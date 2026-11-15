@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BigQuery ML, AutoML and Prebuilt AI APIs</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 1 · 1.1, 1.2</span></div>
+<h1>Low-code AI: BigQuery ML, AutoML and prebuilt AI APIs</h1>
+<p class="subtitle">Section 1 of the exam: building models with SQL in BigQuery ML (model types, TRANSFORM, evaluation, forecasting, explanations, remote Gemini models and tuning), AutoML on Agent Platform, and the prebuilt Vision, Document AI, Translation and Speech APIs. Includes a hands-on BigQuery ML lab.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#ladder">The low-code ladder</a></li>
+    <li><a href="#bqml">BigQuery ML: models in SQL</a></li>
+    <li><a href="#bqgemini">Gemini and remote models from BigQuery</a></li>
+    <li><a href="#automl">AutoML</a></li>
+    <li><a href="#apis">Prebuilt AI APIs</a></li>
+    <li><a href="#lab">Lab: churn model end to end in BigQuery ML</a></li>
+    <li><a href="#chooser">"Which low-code option?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (22 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="ladder">1. The low-code ladder</h2>
+<p>Exam section 1 (about 13%) rewards picking the <strong>least effort that meets the requirement</strong>. Climb only when the rung below can't do the job.</p>
+<table>
+  <tr><th>Rung</th><th>You provide</th><th>You get</th><th>Choose when</th></tr>
+  <tr><td>1. Prebuilt API (Vision, Document AI, Translation, Speech, Natural Language)</td><td>Nothing but the input</td><td>Google's model, no training</td><td>The task is generic: OCR, common labels, translation, transcription</td></tr>
+  <tr><td>2. Gemini prompting (optionally from BigQuery)</td><td>A prompt and maybe examples</td><td>Flexible extraction, classification, summarization</td><td>Unstructured text or images with your own categories, few or no labels</td></tr>
+  <tr><td>3. BigQuery ML</td><td>SQL over labelled tables</td><td>A model trained and scored in the warehouse</td><td>Tabular data already in BigQuery, SQL team, batch scoring</td></tr>
+  <tr><td>4. AutoML</td><td>Labelled data</td><td>A searched architecture and an endpoint-ready model</td><td>Your own labels (especially images), best accuracy with no model code</td></tr>
+  <tr><td>5. Custom training</td><td>Code, containers, tuning</td><td>Full control</td><td>Custom architecture or loss, huge data, distributed training</td></tr>
+</table>
+<div class="key">Cue words: "minimal effort", "no ML expertise", "analysts know SQL", "quickly" all point down the ladder. "Custom loss", "specific architecture", "full control" point up.</div>
+
+<!-- ============================================================ -->
+<h2 id="bqml">2. BigQuery ML: models in SQL</h2>
+<p><strong>BigQuery ML (BQML)</strong> trains and runs models with SQL, inside BigQuery. The data never leaves the warehouse, analysts don't need Python, and prediction runs over whole tables. It's the default answer when "the data is in BigQuery" and "the team knows SQL".</p>
+<table>
+  <tr><th>Business problem</th><th><code>model_type</code></th><th>Notes</th></tr>
+  <tr><td>Predict a number (revenue, duration)</td><td><code>LINEAR_REG</code>, <code>BOOSTED_TREE_REGRESSOR</code>, <code>RANDOM_FOREST_REGRESSOR</code>, <code>DNN_REGRESSOR</code></td><td>Start linear for interpretability, boosted trees for accuracy on tabular data</td></tr>
+  <tr><td>Predict a class (churn, fraud)</td><td><code>LOGISTIC_REG</code>, <code>BOOSTED_TREE_CLASSIFIER</code>, <code>DNN_CLASSIFIER</code>, <code>AUTOML_CLASSIFIER</code></td><td><code>auto_class_weights=TRUE</code> for imbalanced labels</td></tr>
+  <tr><td>Forecast a time series</td><td><code>ARIMA_PLUS</code>, <code>ARIMA_PLUS_XREG</code> (extra regressors), <code>TIMESFM</code> via <code>AI.FORECAST</code></td><td>Handles seasonality, holidays and many series at once with <code>time_series_id_col</code></td></tr>
+  <tr><td>Group customers with no labels</td><td><code>KMEANS</code></td><td>Unsupervised; also used for anomaly detection by distance to centroid</td></tr>
+  <tr><td>Recommend products</td><td><code>MATRIX_FACTORIZATION</code></td><td>Explicit (ratings) or implicit (clicks) feedback</td></tr>
+  <tr><td>Reduce dimensions / detect anomalies</td><td><code>PCA</code>, <code>AUTOENCODER</code></td><td>Pair with <code>ML.DETECT_ANOMALIES</code></td></tr>
+  <tr><td>Use a Gemini or other hosted model from SQL</td><td>Remote model (<code>REMOTE WITH CONNECTION</code>)</td><td>Generate text, embeddings, classify or extract with <code>ML.GENERATE_TEXT</code> / <code>AI.GENERATE</code>, <code>ML.GENERATE_EMBEDDING</code></td></tr>
+  <tr><td>Bring an existing model</td><td>Imported TensorFlow, ONNX, XGBoost</td><td>Run batch prediction in SQL on a model trained elsewhere</td></tr>
+</table>
+<pre><code>-- Train: the TRANSFORM clause stores preprocessing with the model,
+-- so ML.PREDICT applies exactly the same steps at prediction time.
+CREATE OR REPLACE MODEL `shop.churn_model`
+TRANSFORM(
+  ML.STANDARD_SCALER(tenure_days) OVER () AS tenure_scaled,
+  ML.QUANTILE_BUCKETIZE(monthly_spend, 10) OVER () AS spend_bucket,
+  plan_type,
+  churned
+)
+OPTIONS(
+  model_type = 'BOOSTED_TREE_CLASSIFIER',
+  input_label_cols = ['churned'],
+  auto_class_weights = TRUE,
+  data_split_method = 'AUTO_SPLIT',
+  enable_global_explain = TRUE,
+  model_registry = 'VERTEX_AI'            -- also register it in Model Registry
+) AS
+SELECT tenure_days, monthly_spend, plan_type, churned
+FROM `shop.customers`
+WHERE signup_date &lt; '2026-01-01';
+
+SELECT * FROM ML.EVALUATE(MODEL `shop.churn_model`);          -- precision, recall, roc_auc, log_loss...
+SELECT * FROM ML.GLOBAL_EXPLAIN(MODEL `shop.churn_model`);    -- which features matter overall
+SELECT * FROM ML.PREDICT(MODEL `shop.churn_model`,
+                         (SELECT * FROM `shop.customers_today`));
+SELECT * FROM ML.EXPLAIN_PREDICT(MODEL `shop.churn_model`,    -- per-row attributions
+                         (SELECT * FROM `shop.customers_today`), STRUCT(3 AS top_k_features));</code></pre>
+<table>
+  <tr><th>Function</th><th>Use</th></tr>
+  <tr><td><code>ML.EVALUATE</code></td><td>Metrics on the held-out split (or a table you pass)</td></tr>
+  <tr><td><code>ML.PREDICT</code></td><td>Batch prediction over a query</td></tr>
+  <tr><td><code>ML.FORECAST</code>, <code>ML.EXPLAIN_FORECAST</code></td><td>Future values with prediction intervals; trend/seasonality decomposition</td></tr>
+  <tr><td><code>ML.EXPLAIN_PREDICT</code>, <code>ML.GLOBAL_EXPLAIN</code>, <code>ML.FEATURE_IMPORTANCE</code></td><td>Local and global explanations (feature importance for tree models)</td></tr>
+  <tr><td><code>ML.CONFUSION_MATRIX</code>, <code>ML.ROC_CURVE</code></td><td>Choose a classification threshold</td></tr>
+  <tr><td><code>ML.DETECT_ANOMALIES</code></td><td>Anomalies from ARIMA_PLUS, k-means, PCA or autoencoder models</td></tr>
+  <tr><td><code>ML.FEATURE_CROSS</code>, <code>ML.BUCKETIZE</code>, <code>ML.ONE_HOT_ENCODER</code>, <code>ML.IMPUTER</code></td><td>Feature engineering, ideally inside <code>TRANSFORM</code></td></tr>
+  <tr><td><code>CREATE MODEL ... OPTIONS(model_type='PCA')</code> or feature importance</td><td>Feature selection and dimensionality reduction</td></tr>
+</table>
+<h3>Splits, tuning and export</h3>
+<table>
+  <tr><th>Option</th><th>Values and meaning</th></tr>
+  <tr><td><code>data_split_method</code></td><td><code>AUTO_SPLIT</code> (default, random by size), <code>RANDOM</code>, <code>CUSTOM</code> (a boolean column you provide), <code>SEQ</code> (by an ordering column: use for time), <code>NO_SPLIT</code></td></tr>
+  <tr><td><code>data_split_col</code>, <code>data_split_eval_fraction</code></td><td>Which column and how much goes to evaluation</td></tr>
+  <tr><td><code>num_trials</code>, <code>max_parallel_trials</code>, <code>hparam_tuning_objectives</code></td><td>Built-in hyperparameter tuning; ranges with <code>HPARAM_RANGE</code> / <code>HPARAM_CANDIDATES</code>; inspect with <code>ML.TRIAL_INFO</code></td></tr>
+  <tr><td><code>l1_reg</code>, <code>l2_reg</code>, <code>early_stop</code>, <code>max_tree_depth</code>, <code>subsample</code></td><td>Regularization and capacity controls</td></tr>
+  <tr><td><code>class_weights</code> / <code>auto_class_weights</code></td><td>Imbalanced labels</td></tr>
+  <tr><td><code>EXPORT MODEL ... OPTIONS(URI='gs://BUCKET/...')</code></td><td>Export to Cloud Storage (TensorFlow SavedModel or XGBoost booster) to serve elsewhere</td></tr>
+  <tr><td><code>model_registry='VERTEX_AI'</code></td><td>Register in Model Registry; deploy to an endpoint for online predictions</td></tr>
+</table>
+<pre><code>-- Built-in tuning: 20 trials, 4 at a time, optimizing ROC AUC
+CREATE OR REPLACE MODEL `shop.churn_tuned`
+OPTIONS(
+  model_type = 'BOOSTED_TREE_CLASSIFIER',
+  input_label_cols = ['churned'],
+  num_trials = 20, max_parallel_trials = 4,
+  hparam_tuning_objectives = ['roc_auc'],
+  max_tree_depth = HPARAM_RANGE(3, 10),
+  learn_rate = HPARAM_RANGE(0.01, 0.3)
+) AS SELECT * FROM `shop.training_view`;
+
+SELECT * FROM ML.TRIAL_INFO(MODEL `shop.churn_tuned`);</code></pre>
+<div class="warn">For time-ordered data, set <code>data_split_method='SEQ'</code> (or a custom split column). The default random split leaks the future into training.</div>
+<h3>When BigQuery ML is the wrong tool</h3>
+<ul>
+  <li>Custom architectures, custom losses, or frameworks like PyTorch with bespoke training loops.</li>
+  <li>Images, audio or video as raw input (use AutoML, Gemini or custom training).</li>
+  <li>Strict millisecond online latency directly from BigQuery: register the model and deploy it to an endpoint, or export it.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="bqgemini">3. Gemini and remote models from BigQuery</h2>
+<p>A <strong>remote model</strong> points BigQuery at a hosted model (Gemini, an embedding model, or your own endpoint) through a <strong>connection</strong> whose service account has Agent Platform access. Generation and embedding then run as SQL over tables.</p>
+<table>
+  <tr><th>Function</th><th>Use</th></tr>
+  <tr><td><code>ML.GENERATE_TEXT</code> / <code>AI.GENERATE</code>, <code>AI.GENERATE_TABLE</code></td><td>Summarize, classify, extract fields (structured output into columns)</td></tr>
+  <tr><td><code>ML.GENERATE_EMBEDDING</code></td><td>Embeddings for text (and images via object tables)</td></tr>
+  <tr><td><code>VECTOR_SEARCH</code>, <code>CREATE VECTOR INDEX</code></td><td>Similarity search in BigQuery: simple RAG or semantic dedup without another database</td></tr>
+  <tr><td>Object tables</td><td>Query unstructured files in Cloud Storage (images, PDFs) as rows</td></tr>
+  <tr><td><code>ML.UNDERSTAND_TEXT</code>, <code>ML.TRANSLATE</code>, <code>ML.PROCESS_DOCUMENT</code>, <code>ML.TRANSCRIBE</code></td><td>Prebuilt Cloud AI APIs called from SQL</td></tr>
+</table>
+<p>BQML can <strong>supervised-tune a Gemini model</strong> on prompt/response pairs stored in a table, then serve it as a remote model, all from SQL:</p>
+<pre><code>CREATE OR REPLACE MODEL `support.ticket_tagger`
+  REMOTE WITH CONNECTION `us.vertex_conn`
+  OPTIONS (
+    endpoint = 'gemini-2.5-flash',          -- base model to tune
+    max_iterations = 300,
+    prompt_col = 'prompt',
+    input_label_cols = ['label']
+  ) AS
+SELECT prompt, label FROM `support.labelled_examples`;
+
+SELECT * FROM ML.GENERATE_TEXT(MODEL `support.ticket_tagger`,
+  (SELECT ticket_text AS prompt FROM `support.new_tickets`),
+  STRUCT(0.0 AS temperature, TRUE AS flatten_json_output));</code></pre>
+<div class="note">Supported base models, option names and the newer <code>AI.GENERATE*</code> functions change often. Check the BigQuery ML documentation for your release. The pattern to remember: a <strong>connection</strong> (a BigQuery connection resource whose service account has Agent Platform access), a <strong>remote model</strong>, and generation functions run over tables.</div>
+
+<!-- ============================================================ -->
+<h2 id="automl">4. AutoML</h2>
+<p><strong>AutoML</strong> trains a high-quality model from labelled data with no model code: it searches architectures and hyperparameters for you. You pay in node hours and give up control of the architecture and loss.</p>
+<table>
+  <tr><th>Data type</th><th>Tasks</th><th>Notes</th></tr>
+  <tr><td>Tabular</td><td>Classification, regression, forecasting</td><td>From BigQuery or CSV in Cloud Storage. Set a training budget; enable early stopping. <strong>Tabular Workflows</strong> give a pipeline-based, more configurable version (End-to-End AutoML, TabNet, Wide &amp; Deep, forecasting).</td></tr>
+  <tr><td>Image</td><td>Classification (single/multi-label), object detection</td><td>Can export Edge-optimized models (TF Lite, Core ML, container) for on-device use</td></tr>
+  <tr><td>Video</td><td>Classification, object tracking, action recognition</td><td>Being replaced by Gemini prompting for many uses</td></tr>
+  <tr><td>Text</td><td>Classification, entity extraction, sentiment</td><td>Google now steers text tasks to Gemini prompting or tuning; legacy AutoML text is retired. Expect "use Gemini" as the modern answer</td></tr>
+</table>
+<table>
+  <tr><th>Choose</th><th>When</th></tr>
+  <tr><td><strong>BigQuery ML</strong></td><td>Data in BigQuery, SQL skills, batch scoring in the warehouse, quick baselines, forecasting many series</td></tr>
+  <tr><td><strong>AutoML</strong></td><td>Best accuracy without ML expertise, images or video, or tabular data where you want an online endpoint quickly</td></tr>
+  <tr><td><strong>Custom training</strong></td><td>Custom architecture, loss or framework, very large data, distributed training, full control</td></tr>
+</table>
+<div class="warn">Exporting BigQuery data to CSV to train elsewhere is almost never the answer when BQML or a BigQuery-sourced AutoML dataset meets the requirements. And AutoML isn't free of cost: it's often more expensive than a simple BQML model; the trade is accuracy and zero model code.</div>
+<h3>AutoML practicalities</h3>
+<table>
+  <tr><th>Topic</th><th>What to know</th></tr>
+  <tr><td>Data volume</td><td>Image classification works from roughly hundreds of images per label; more is better; balance the labels</td></tr>
+  <tr><td>Budget</td><td>Training budget in node hours; early stopping ends sooner when quality plateaus</td></tr>
+  <tr><td>Optimization objective (tabular)</td><td>Choose to match the business: maximize AU-PRC for rare positives, minimize log loss for probabilities, RMSE/MAE for regression</td></tr>
+  <tr><td>Data split</td><td>Random, manual (a column), or chronological (a time column) for forecasting and time-dependent data</td></tr>
+  <tr><td>Explainability</td><td>Feature attributions for tabular models; evaluation shows confusion matrix and per-label metrics</td></tr>
+  <tr><td>Deployment</td><td>Model Registry → endpoint (online) or batch inference; edge export for image models</td></tr>
+</table>
+<div class="mn"><strong>AutoML tabular objective:</strong> rare positives → AU-PRC; probabilities matter → log loss; balanced and ranking → AU-ROC.</div>
+
+<!-- ============================================================ -->
+<h2 id="apis">5. Prebuilt AI APIs</h2>
+<table>
+  <tr><th>API</th><th>Does</th><th>Exam cue</th></tr>
+  <tr><td><strong>Cloud Vision API</strong></td><td>Labels, OCR (text detection, document text detection), faces, landmarks, logos, SafeSearch, objects</td><td>"Detect common objects or read text in photos" with no custom labels</td></tr>
+  <tr><td><strong>Document AI</strong></td><td>Processors for invoices, receipts, IDs, forms, layout; custom extractors trained from a few documents</td><td>"Extract fields from invoices or forms into structured data"</td></tr>
+  <tr><td><strong>Cloud Translation API</strong></td><td>Basic and Advanced (glossaries, batch document translation, adaptive translation, custom models)</td><td>"Keep product names untranslated" → a <strong>glossary</strong></td></tr>
+  <tr><td><strong>Speech-to-Text / Text-to-Speech</strong></td><td>Transcription with model adaptation (phrase hints), diarization; natural voices</td><td>"Recognize domain terms in calls" → speech adaptation</td></tr>
+  <tr><td><strong>Natural Language API</strong></td><td>Sentiment, entities, syntax, content classification</td><td>Quick sentiment with no training</td></tr>
+  <tr><td><strong>Video Intelligence API</strong></td><td>Shot changes, labels, explicit content, text in video</td><td>Catalogue video archives</td></tr>
+  <tr><td>Industry solutions</td><td>Healthcare Natural Language, Contact Center AI, Recommendations AI</td><td>Domain-specific managed products</td></tr>
+</table>
+<div class="key">If a prebuilt API covers the task with acceptable accuracy, it wins: no data labelling, no training, no serving to manage. Move to AutoML, a custom Document AI extractor, or Gemini only when you need <em>your</em> labels or classes.</div>
+<h3>Customizing without training a model</h3>
+<table>
+  <tr><th>Need</th><th>Feature</th></tr>
+  <tr><td>Keep brand and product names consistent in translation</td><td>Translation Advanced <strong>glossary</strong></td></tr>
+  <tr><td>Recognize jargon, product names, alphanumeric codes in speech</td><td>Speech-to-Text <strong>model adaptation</strong> (phrase sets, boosts)</td></tr>
+  <tr><td>Who spoke when</td><td>Speaker diarization</td></tr>
+  <tr><td>Fields from a document type no prebuilt processor covers</td><td>Document AI <strong>Custom Extractor</strong> (generative, from a few labelled documents)</td></tr>
+  <tr><td>Layout-aware chunks for RAG from PDFs</td><td>Document AI <strong>layout parser</strong></td></tr>
+  <tr><td>Your own image categories</td><td>AutoML image or Gemini with examples (Vision API labels are fixed)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="lab">6. Lab: churn model end to end in BigQuery ML</h2>
+<p>Use a sandbox project with billing alerts. Placeholders: <code>PROJECT_ID</code>, dataset <code>shop</code>, region <code>us-central1</code>.</p>
+<ol>
+  <li>Load a public e-commerce or telco churn table into your dataset, or create <code>shop.customers</code> with a label column.</li>
+  <li>Train a <code>LOGISTIC_REG</code> baseline, then a <code>BOOSTED_TREE_CLASSIFIER</code> with a <code>TRANSFORM</code> clause and <code>auto_class_weights=TRUE</code>.</li>
+  <li>Compare with <code>ML.EVALUATE</code>. Run <code>ML.CONFUSION_MATRIX</code> at thresholds 0.3, 0.5 and 0.7 and pick one with the <a href="ml-model-evaluation.html#metricscalc">confusion-matrix calculator</a>.</li>
+  <li>Run <code>ML.EXPLAIN_PREDICT</code> on five rows and <code>ML.GLOBAL_EXPLAIN</code>. Is any feature suspiciously dominant (possible leakage)?</li>
+  <li>Retrain with <code>num_trials=10</code> and read <code>ML.TRIAL_INFO</code>.</li>
+  <li>Retrain with <code>model_registry='VERTEX_AI'</code> and find the model in Model Registry.</li>
+  <li>Create a remote Gemini model through a connection and use <code>ML.GENERATE_TEXT</code> to summarize the 20 most recent support tickets per churner.</li>
+</ol>
+<p><strong>You should be able to say:</strong> why TRANSFORM prevents training-serving skew, why PR AUC beats accuracy here, and how batch scoring in SQL avoids running an endpoint. <strong>Clean up:</strong> <code>DROP MODEL</code> for each model; delete the dataset and the connection.</p>
+
+<!-- ============================================================ -->
+<h2 id="chooser">7. "Which low-code option?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">8. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>SELECT * FROM ML.EVALUATE(MODEL `shop.churn_model`)</code><span class="smp-what">Classification metrics from BigQuery ML</span></summary><pre><code>precision  recall  accuracy  f1_score  log_loss  roc_auc
+0.412      0.783   0.951     0.540     0.142     0.931</code></pre><p class="smp-read"><strong>What to look at:</strong> Accuracy 0.95 looks great but churners are rare, so it means little. Recall 0.78 with precision 0.41 says the model finds most churners at the cost of many false alarms, at the default 0.5 threshold. For a retention campaign where a false alarm costs a discount, check <code>ML.ROC_CURVE</code> or <code>ML.CONFUSION_MATRIX</code> and move the threshold. ROC AUC 0.93 overstates quality on imbalanced data; compare PR AUC.</p></details>
+<details class="smp"><summary><code>SELECT * FROM ML.GLOBAL_EXPLAIN(MODEL `shop.churn_model`)</code><span class="smp-what">Global feature attributions</span></summary><pre><code>feature          attribution
+tenure_scaled    0.318
+support_tickets  0.244
+spend_bucket     0.131
+plan_type        0.087
+last_refund_flag 0.512</code></pre><p class="smp-read"><strong>What to look at:</strong> <code>last_refund_flag</code> dominates. If refunds are often issued <em>as part of</em> cancelling, the feature leaks the label: it's known only after churn. Suspiciously strong features in attributions are the classic sign of leakage; remove it and retrain.</p></details>
+<details class="smp"><summary><code>SELECT * FROM ML.FORECAST(MODEL `retail.sales_arima`, STRUCT(14 AS horizon, 0.9 AS confidence_level))</code><span class="smp-what">ARIMA_PLUS forecast with intervals</span></summary><pre><code>store_id  forecast_timestamp       forecast_value  prediction_interval_lower_bound  prediction_interval_upper_bound
+s-014     2026-11-15 00:00:00 UTC  1843.2          1611.7                           2074.7
+s-014     2026-11-16 00:00:00 UTC  2210.9          1958.0                           2463.8
+s-022     2026-11-15 00:00:00 UTC   932.4           801.3                           1063.5</code></pre><p class="smp-read"><strong>What to look at:</strong> One model forecasts every store because <code>time_series_id_col</code> was set. The 90% interval is what inventory planning should use for safety stock, not just the point forecast.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">9. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">10. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. ARIMA_PLUS, TRANSFORM, ML.PREDICT, Document AI…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">11. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">12. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Data in BigQuery and a SQL team means BigQuery ML</strong>, not exporting CSVs to a custom job.</li>
+<li><strong>Use TRANSFORM</strong> so preprocessing travels with the model and serving can't drift from training.</li>
+<li><strong>Random splits on time data leak the future</strong>; use SEQ or a custom time column.</li>
+<li><strong>Prebuilt APIs win when classes are generic</strong>; custom labels need AutoML, Gemini or custom training.</li>
+<li><strong>AutoML text is retired</strong>; text classification and extraction now point to Gemini.</li>
+<li><strong>Remote models need a connection</strong>, and the connection's service account needs Agent Platform access.</li>
+<li><strong>Batch scoring in SQL avoids endpoint costs</strong>; deploy only when you need online latency.</li>
+<li><strong>Glossary for terminology, speech adaptation for jargon</strong>: customization without training.</li>
+<li><strong>AutoML isn't automatically cheaper</strong>: node hours add up; set budgets and early stopping.</li>
+<li><strong>Match the AutoML objective to the business</strong>: AU-PRC for rare positives.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">13. Practice quiz (22 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="ml-model-evaluation.html">← ML fundamentals 2: bias-variance and metrics</a><a href="gcp-genai-stack.html">Next: Gemini, Model Garden and Agent Platform →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Read text and labels in photos, no custom classes", "Cloud Vision API", "Prebuilt models already recognize common objects and text; nothing to train.", "Training an AutoML image model"],
+  ["Extract fields from invoices into a database", "Document AI (invoice or custom extractor processor)", "Purpose-built document parsing with structured output.", "Vision OCR plus hand-written parsing code"],
+  ["Analysts with SQL want a churn model on BigQuery data", "BigQuery ML", "Trains and scores where the data lives, in SQL.", "Exporting to CSV for a custom TensorFlow job"],
+  ["Best image classifier for our own labels, no ML engineers", "AutoML image classification", "Custom labels without writing model code.", "Cloud Vision API (fixed label set)"],
+  ["Forecast demand for 5,000 stores from BigQuery", "BigQuery ML ARIMA_PLUS with time_series_id_col (or AutoML forecasting)", "One statement trains a model per series, with seasonality and holidays.", "A custom LSTM per store"],
+  ["Translate product catalogue, brand names must stay as-is", "Translation Advanced with a glossary", "Glossaries pin terminology without training.", "Training a custom translation model first"],
+  ["Call transcripts miss product codes and jargon", "Speech-to-Text model adaptation (phrase sets)", "Boosts recognition of specific phrases.", "A custom acoustic model from scratch"],
+  ["Classify 2 million support tickets into our 15 categories from BigQuery, few labels", "Remote Gemini model with ML.GENERATE_TEXT (or AI.GENERATE)", "Prompting handles custom categories without a labelled training set.", "AutoML text (retired) or a custom NLP model"],
+  ["Semantic search over product descriptions already in BigQuery", "ML.GENERATE_EMBEDDING plus VECTOR_SEARCH", "Embeddings and similarity search stay in the warehouse.", "Exporting to a separate vector database first"],
+  ["Customer segments with no labels", "BigQuery ML KMEANS", "Unsupervised clustering in SQL.", "A classifier"],
+  ["Product recommendations from purchase history in BigQuery", "BigQuery ML MATRIX_FACTORIZATION (implicit feedback)", "Collaborative filtering in SQL.", "Linear regression"],
+  ["Spot unusual daily sales per store", "ARIMA_PLUS with ML.DETECT_ANOMALIES", "Flags points outside the forecast interval.", "Manual thresholds per store"],
+  ["Online low-latency predictions from a BigQuery ML model", "Register with model_registry='VERTEX_AI' and deploy to an endpoint", "Endpoints serve online; BigQuery serves batch.", "Calling ML.PREDICT per request"],
+  ["Tabular AutoML with 0.5% positives", "Optimization objective: maximize AU-PRC", "Focuses on the rare class.", "Maximize accuracy"],
+  ["Fields from a contract type no prebuilt processor handles", "Document AI Custom Extractor", "Generative extraction from a few labelled documents.", "Vision OCR plus regex"]
+];
+
+const samples = [
+  ["SELECT * FROM ML.EVALUATE(MODEL `shop.churn_model`)", "Classification metrics from BigQuery ML", "precision  recall  accuracy  f1_score  log_loss  roc_auc\n0.412      0.783   0.951     0.540     0.142     0.931", "Accuracy 0.95 looks great but churners are rare, so it means little. Recall 0.78 with precision 0.41 says the model finds most churners at the cost of many false alarms, at the default 0.5 threshold. For a retention campaign where a false alarm costs a discount, check <code>ML.ROC_CURVE</code> or <code>ML.CONFUSION_MATRIX</code> and move the threshold. ROC AUC 0.93 overstates quality on imbalanced data; compare PR AUC."],
+  ["SELECT * FROM ML.GLOBAL_EXPLAIN(MODEL `shop.churn_model`)", "Global feature attributions", "feature          attribution\ntenure_scaled    0.318\nsupport_tickets  0.244\nspend_bucket     0.131\nplan_type        0.087\nlast_refund_flag 0.512", "<code>last_refund_flag</code> dominates. If refunds are often issued <em>as part of</em> cancelling, the feature leaks the label: it's known only after churn. Suspiciously strong features in attributions are the classic sign of leakage; remove it and retrain."],
+  ["SELECT * FROM ML.FORECAST(MODEL `retail.sales_arima`, STRUCT(14 AS horizon, 0.9 AS confidence_level))", "ARIMA_PLUS forecast with intervals", "store_id  forecast_timestamp       forecast_value  prediction_interval_lower_bound  prediction_interval_upper_bound\ns-014     2026-11-15 00:00:00 UTC  1843.2          1611.7                           2074.7\ns-014     2026-11-16 00:00:00 UTC  2210.9          1958.0                           2463.8\ns-022     2026-11-15 00:00:00 UTC   932.4           801.3                           1063.5", "One model forecasts every store because <code>time_series_id_col</code> was set. The 90% interval is what inventory planning should use for safety stock, not just the point forecast."]
+];
+
+const traps = [
+  "<strong>Data in BigQuery and a SQL team means BigQuery ML</strong>, not exporting CSVs to a custom job.",
+  "<strong>Use TRANSFORM</strong> so preprocessing travels with the model and serving can't drift from training.",
+  "<strong>Random splits on time data leak the future</strong>; use SEQ or a custom time column.",
+  "<strong>Prebuilt APIs win when classes are generic</strong>; custom labels need AutoML, Gemini or custom training.",
+  "<strong>AutoML text is retired</strong>; text classification and extraction now point to Gemini.",
+  "<strong>Remote models need a connection</strong>, and the connection's service account needs Agent Platform access.",
+  "<strong>Batch scoring in SQL avoids endpoint costs</strong>; deploy only when you need online latency.",
+  "<strong>Glossary for terminology, speech adaptation for jargon</strong>: customization without training.",
+  "<strong>AutoML isn't automatically cheaper</strong>: node hours add up; set budgets and early stopping.",
+  "<strong>Match the AutoML objective to the business</strong>: AU-PRC for rare positives."
+];
+
+const questions = [
+  { q: "A retailer's analysts know SQL and keep two years of transactions in BigQuery. They want weekly sales forecasts for 3,000 stores with minimal engineering. What should they use?", opts: ["Export to Cloud Storage and train an LSTM per store with custom training", "BigQuery ML ARIMA_PLUS with the store as time_series_id_col", "Cloud Vision API", "A Gemini prompt per store each week"], a: 1, why: "ARIMA_PLUS forecasts many series in one SQL statement, inside BigQuery, with seasonality and holidays." },
+  { q: "Fields must be extracted from scanned supplier invoices into BigQuery, with as little custom work as possible. Which service fits best?", opts: ["Cloud Vision label detection", "AutoML image classification", "Translation API", "Document AI with an invoice processor"], a: 3, why: "Document AI's invoice processor returns structured fields from invoices." },
+  { q: "A team trained a BigQuery ML model with heavy preprocessing in a separate SQL view. At prediction time, the application team reimplements the preprocessing in Java and results are worse. What would have prevented this?", opts: ["Putting the preprocessing in the model's TRANSFORM clause", "Training a bigger model", "Using ROC AUC instead of accuracy", "Running prediction on GPUs"], a: 0, why: "TRANSFORM stores preprocessing with the model so ML.PREDICT applies identical steps, removing skew from reimplementation." },
+  { q: "Daily churn scores are needed for all 20 million customers and written back to BigQuery. Predictions aren't needed in real time. What's best?", opts: ["An online endpoint called 20 million times", "A Cloud Run service with min instances", "Batch inference (or BigQuery ML ML.PREDICT) writing to BigQuery", "Edge deployment"], a: 2, why: "Batch scoring avoids paying for an always-on endpoint and writes straight to BigQuery." },
+  { q: "A startup wants an image classifier for 12 custom product categories. They have 5,000 labelled photos and no ML engineers. What should they choose?", opts: ["Cloud Vision label detection", "Custom TPU training from scratch", "AutoML image classification", "BigQuery ML linear regression"], a: 2, why: "Custom labels and no ML engineering make AutoML the right fit; Vision API's labels are generic." },
+  { q: "A BigQuery ML model is trained on three years of daily orders to predict next-week returns. What split setting avoids leakage?", opts: ["data_split_method='SEQ' on the order date (or a custom time-based split column)", "data_split_method='RANDOM'", "NO_SPLIT and evaluate on training data", "AUTO_SPLIT with a larger eval fraction"], a: 0, why: "Sequential splits keep the future out of training." },
+  { q: "Analysts want to tune a BigQuery ML boosted-tree model's depth and learning rate without leaving SQL. How?", opts: ["Export to Agent Platform and run a Vizier job", "Train 50 models by hand", "Use ML.FORECAST", "Set num_trials with HPARAM_RANGE options and read ML.TRIAL_INFO"], a: 3, why: "BQML has built-in hyperparameter tuning." },
+  { q: "A BigQuery ML model must now serve predictions to a web app with low latency. What's the simplest path?", opts: ["Call ML.PREDICT for every web request", "Register it in Model Registry (model_registry='VERTEX_AI') and deploy to an endpoint", "Rewrite the model in TensorFlow", "Schedule a query every second"], a: 1, why: "BigQuery is for batch; endpoints serve online requests." },
+  { q: "ML.GENERATE_TEXT on a remote Gemini model fails with permission denied, although you are a project owner. What's the fix?", opts: ["Grant the Agent Platform user role to the BigQuery connection's service account", "Grant yourself BigQuery Admin", "Switch to a different region", "Enable the Vision API"], a: 0, why: "Remote models call Agent Platform as the connection's service account." },
+  { q: "A team wants semantic search over 5 million product descriptions already in BigQuery, with minimal new infrastructure. What fits?", opts: ["Export to a self-managed vector database on VMs", "Train an AutoML text model", "ML.GENERATE_EMBEDDING into a table, a vector index, and VECTOR_SEARCH", "Use LIKE '%term%' queries"], a: 2, why: "BigQuery supports embeddings and vector search natively." },
+  { q: "Classify 3 million support tickets in BigQuery into 12 internal categories. There are only 50 labelled examples. What's the most practical approach?", opts: ["AutoML text classification", "BigQuery ML logistic regression on 50 rows", "Natural Language API content classification", "A remote Gemini model with a few-shot prompt via ML.GENERATE_TEXT or AI.GENERATE"], a: 3, why: "Prompting handles custom categories with few labels; NL API categories are fixed." },
+  { q: "Marketing wants customer segments from purchase behaviour, with no labels, inside BigQuery. Which model type?", opts: ["LOGISTIC_REG", "KMEANS", "ARIMA_PLUS", "MATRIX_FACTORIZATION"], a: 1, why: "Clustering is unsupervised." },
+  { q: "An e-commerce team wants product recommendations from implicit click data in BigQuery. Which BQML model type?", opts: ["KMEANS", "BOOSTED_TREE_REGRESSOR", "PCA", "MATRIX_FACTORIZATION with implicit feedback"], a: 3, why: "Matrix factorization is collaborative filtering." },
+  { q: "Daily sales per store should raise an alert when a value is unusual given seasonality. What's the least-effort solution?", opts: ["ARIMA_PLUS per store with ML.DETECT_ANOMALIES", "A fixed threshold per store", "An AutoML image model", "A custom LSTM autoencoder"], a: 0, why: "Anomaly detection uses the forecast interval." },
+  { q: "An AutoML tabular fraud model (0.4% positives) has excellent accuracy but poor fraud recall. Which setting should change?", opts: ["Increase the node-hour budget only", "Optimization objective to maximize AU-PRC, then choose the threshold", "Switch objective to minimize RMSE", "Remove the label column"], a: 1, why: "AU-PRC targets rare-class performance." },
+  { q: "A global retailer translates product pages, but brand and product names must never be translated. What's the right feature?", opts: ["Training a custom translation model", "Speech adaptation", "A Translation Advanced glossary", "Natural Language entity analysis"], a: 2, why: "Glossaries fix terminology without training." },
+  { q: "Call-center transcripts keep mis-recognizing product codes like 'XR-220'. What should you use first?", opts: ["Speech-to-Text model adaptation with phrase sets", "Translation glossary", "Retrain a speech model from scratch", "Video Intelligence API"], a: 0, why: "Adaptation boosts specific phrases." },
+  { q: "A legal team needs fields from a contract type that no prebuilt Document AI processor supports, with only a handful of examples. What fits?", opts: ["Vision API label detection", "BigQuery ML linear regression", "Natural Language sentiment analysis", "Document AI Custom Extractor"], a: 3, why: "Custom Extractor learns fields from few documents." },
+  { q: "Why is exporting BigQuery tables to CSV for a custom training job usually the wrong answer when BigQuery ML suffices?", opts: ["CSV files can't hold numbers", "Custom training doesn't support CSV", "It adds data movement, code and operations without meeting a requirement BQML couldn't", "BigQuery ML is always more accurate"], a: 2, why: "The exam prefers the managed, lowest-effort option that meets the requirements." },
+  { q: "Which statement about legacy AutoML for text is current?", opts: ["AutoML text is the recommended option for new projects", "Text classification and extraction are steered to Gemini prompting or tuning", "AutoML text supports only images", "Text tasks require custom TPU training"], a: 1, why: "Legacy AutoML text is retired." },
+  { q: "A team must forecast demand using price and promotion as extra inputs, in BigQuery. Which model type?", opts: ["KMEANS", "ARIMA_PLUS with no regressors", "ARIMA_PLUS_XREG", "MATRIX_FACTORIZATION"], a: 2, why: "XREG adds external regressors to ARIMA_PLUS." },
+  { q: "A BigQuery ML model trained in BigQuery must run in an on-premises service. What's the path?", opts: ["Copy the BigQuery table on-premises", "EXPORT MODEL to Cloud Storage and serve the exported artifact", "Use ML.PREDICT over VPN", "It's impossible"], a: 1, why: "Export produces a SavedModel or booster you can serve elsewhere." }
+];
+
+const scenarios = [
+  {"t": "Daily BigQuery export to CSV, notebook training, manual upload", "diag": "Map each manual step and where it can fail.", "cause": "MLOps level 0: manual, unrepeatable, no lineage.", "fix": "Train with BigQuery ML or a pipeline reading BigQuery directly; schedule it; register and deploy from the pipeline."},
+  {"t": "Forecasts look fine in testing, fail in production", "diag": "Check how the train/test split was made.", "cause": "A random split let the model see the future of each series.", "fix": "Split by time (train on earlier dates, test on later), and backtest over several windows."},
+  {"t": "BQML churn model looks perfect in evaluation, poor after launch", "diag": "Check data_split_method and features that exist only after the outcome.", "cause": "Random split on time-ordered data, or a leaking feature.", "fix": "data_split_method='SEQ' or a custom time split; drop leaking columns; re-evaluate."},
+  {"t": "App team reimplements BQML preprocessing and gets different predictions", "diag": "Compare feature values at training and serving.", "cause": "Training-serving skew from duplicated preprocessing.", "fix": "Move preprocessing into TRANSFORM; export or deploy the model so preprocessing travels with it."},
+  {"t": "ML.GENERATE_TEXT fails with a permission error", "diag": "Check the connection's service account.", "cause": "The BigQuery connection's service account lacks the Agent Platform user role.", "fix": "Grant the role to the connection's service account (not your user)."},
+  {"t": "Vision API labels are too generic for our 40 product SKUs", "diag": "Check whether the classes are custom.", "cause": "Prebuilt labels are a fixed, general vocabulary.", "fix": "AutoML image classification with labelled photos, or Gemini with examples for low volume."},
+  {"t": "AutoML tabular model has high accuracy but misses most fraud", "diag": "Look at the optimization objective and per-class metrics.", "cause": "Objective tuned for overall accuracy/log loss on a 0.3% positive rate.", "fix": "Optimize for AU-PRC; set a threshold from validation precision and recall."},
+  {"t": "AutoML image training bill was higher than expected", "diag": "Check the node-hour budget and early stopping.", "cause": "Large budget without early stopping.", "fix": "Set a budget and enable early stopping; start with BQML or prebuilt APIs where they fit."},
+  {"t": "Translated manuals render brand names inconsistently", "diag": "Check whether a glossary is used.", "cause": "Translation engine translates brand terms.", "fix": "Translation Advanced glossary for protected terms."},
+  {"t": "Forecasting 4,000 stores with one model per notebook loop takes days", "diag": "Count models and how they're trained.", "cause": "Hand-rolled per-series training.", "fix": "One ARIMA_PLUS statement with time_series_id_col, or AutoML forecasting."}
+];
+
+const cheat = [
+  ["BigQuery ML (BQML)", "Train and predict with SQL in BigQuery"],
+  ["CREATE MODEL ... OPTIONS(model_type=...)", "Train a BQML model"],
+  ["TRANSFORM clause", "Preprocessing stored with a BQML model; applied at prediction (prevents skew)"],
+  ["ML.EVALUATE / ML.PREDICT", "Metrics / batch predictions"],
+  ["ML.FORECAST / ARIMA_PLUS", "Time-series forecasting with intervals; time_series_id_col for many series"],
+  ["ML.EXPLAIN_PREDICT / ML.GLOBAL_EXPLAIN", "Per-row / overall feature attributions in BQML"],
+  ["ML.CONFUSION_MATRIX / ML.ROC_CURVE", "Choose a classification threshold"],
+  ["ML.DETECT_ANOMALIES", "Anomalies from ARIMA_PLUS, k-means, PCA, autoencoder"],
+  ["auto_class_weights=TRUE", "BQML class balancing for imbalanced labels"],
+  ["REMOTE WITH CONNECTION", "BQML remote model over Gemini or another hosted model"],
+  ["ML.GENERATE_TEXT / AI.GENERATE", "Gemini generation over BigQuery rows"],
+  ["model_registry='VERTEX_AI'", "Register a BQML model in Model Registry"],
+  ["AutoML", "Train tabular, image or video models with no model code"],
+  ["Tabular Workflows", "Pipeline-based, configurable AutoML for tabular data"],
+  ["Vision API", "Labels, OCR, faces, landmarks, logos, SafeSearch"],
+  ["Document AI", "Processors that extract structured fields from documents"],
+  ["Translation glossary", "Keep or force specific term translations"],
+  ["Speech adaptation", "Phrase hints and custom classes for domain words"],
+  ["data_split_method", "AUTO_SPLIT, RANDOM, CUSTOM, SEQ (time order), NO_SPLIT"],
+  ["num_trials / HPARAM_RANGE", "BigQuery ML built-in hyperparameter tuning"],
+  ["ML.TRIAL_INFO", "Results of BQML tuning trials"],
+  ["EXPORT MODEL", "Write a BQML model to Cloud Storage"],
+  ["KMEANS", "BQML clustering"],
+  ["MATRIX_FACTORIZATION", "BQML recommendations"],
+  ["ARIMA_PLUS_XREG", "Forecasting with extra regressors"],
+  ["AI.FORECAST (TimesFM)", "Zero-shot forecasting with a foundation model"],
+  ["ML.GENERATE_EMBEDDING", "Embeddings from SQL"],
+  ["VECTOR_SEARCH", "Similarity search in BigQuery"],
+  ["Object tables", "Query Cloud Storage files from SQL"],
+  ["BigQuery connection", "Resource whose service account calls Agent Platform"],
+  ["AutoML optimization objective", "AU-PRC, AU-ROC, log loss, RMSE, MAE"],
+  ["AutoML budget", "Node hours; early stopping"],
+  ["Edge export", "AutoML image models to TF Lite, Core ML, containers"],
+  ["Document AI Custom Extractor", "Custom fields from few documents"],
+  ["Document AI layout parser", "Structure-aware parsing and chunking for RAG"],
+  ["Speaker diarization", "Who spoke when"],
+  ["Natural Language API", "Sentiment, entities, classification"],
+  ["Video Intelligence API", "Labels, shots, text in video"]
+];
+
+const cards = [
+  ["Data in BigQuery, SQL team, need a classifier", "BigQuery ML"],
+  ["Custom image labels, no ML code", "AutoML image"],
+  ["Generic OCR and labels", "Vision API"],
+  ["Invoice fields to a database", "Document AI"],
+  ["TRANSFORM clause", "Preprocessing saved with the BQML model"],
+  ["Time-ordered data in BQML", "data_split_method='SEQ'"],
+  ["Tune hyperparameters in BQML", "num_trials with HPARAM_RANGE"],
+  ["Online serving for a BQML model", "Register in Model Registry, deploy to an endpoint"],
+  ["Embeddings and similarity in BigQuery", "ML.GENERATE_EMBEDDING + VECTOR_SEARCH"],
+  ["Who needs the Agent Platform role for remote models?", "The connection's service account"],
+  ["Recommendations in SQL", "MATRIX_FACTORIZATION"],
+  ["Anomalies in time series in SQL", "ARIMA_PLUS + ML.DETECT_ANOMALIES"],
+  ["AutoML for rare positives", "Optimize AU-PRC"],
+  ["Protect brand terms in translation", "Glossary"],
+  ["Jargon in transcripts", "Speech adaptation"],
+  ["Legacy AutoML text replacement", "Gemini prompting or tuning"],
+  ["First rung of the ladder", "Prebuilt API"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+</script>
+</body>
+</html>

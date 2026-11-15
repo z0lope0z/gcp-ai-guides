@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML Pipelines, Retraining and CI/CD/CT on Google Cloud</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 5 · 5.1, 5.2</span></div>
+<h1>ML pipelines, retraining and CI/CD/CT</h1>
+<p class="subtitle">Section 5: Agent Platform Pipelines (Kubeflow Pipelines and TFX), Managed Service for Apache Airflow, Ray, data and model validation gates, keeping preprocessing consistent between training and serving, retraining policies, MLOps maturity levels and CI/CD/CT with Cloud Build. Includes a pipeline lab.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#pipelines">End-to-end ML pipelines</a></li>
+    <li><a href="#retrain">Retraining and CI/CD/CT</a></li>
+    <li><a href="#maturity">MLOps maturity at a glance</a></li>
+    <li><a href="#lab">Lab: a Kubeflow pipeline with a validation gate</a></li>
+    <li><a href="#chooser">"Which orchestrator?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (18 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="pipelines">1. End-to-end ML pipelines</h2>
+<p>A pipeline turns notebook steps into a repeatable, versioned, automated workflow: ingest → validate data → transform → train → evaluate → validate the model → register → deploy → monitor. Each run records lineage, so you can answer "which data and code produced the model in production?"</p>
+<h3>Orchestrators</h3>
+<table>
+  <tr><th>Orchestrator</th><th>Choose when</th></tr>
+  <tr><td><strong>Agent Platform Pipelines</strong></td><td>Default for ML: serverless, runs Kubeflow Pipelines (KFP) v2 or TFX pipelines, automatic lineage in ML Metadata, caching, Google Cloud Pipeline Components, scheduling</td></tr>
+  <tr><td><strong>Managed Service for Apache Airflow</strong> (formerly Cloud Composer)</td><td>Orchestrating <em>whole data platforms</em>: many systems, ETL schedules, cross-team DAGs. It can trigger ML pipelines, but isn't ML-aware (no artifact lineage)</td></tr>
+  <tr><td><strong>Ray on Agent Platform</strong></td><td>Python-native distributed data processing, training and tuning (Ray Data, Ray Train, Ray Tune) on a managed Ray cluster</td></tr>
+  <tr><td>Kubeflow Pipelines on GKE</td><td>Self-managed open source on your own cluster</td></tr>
+  <tr><td>Templates</td><td>Prebuilt pipelines (Tabular Workflows, model evaluation, tuning templates) to start from instead of writing your own</td></tr>
+</table>
+<pre><code>from kfp import dsl, compiler
+from google_cloud_pipeline_components.v1.custom_job import CustomTrainingJobOp
+
+@dsl.component(base_image="python:3.11", packages_to_install=["pandas", "google-cloud-bigquery"])
+def validate_data(table: str) -> bool:
+    ...  # row counts, schema, nulls, ranges; return False to stop the run
+
+@dsl.component(base_image="python:3.11")
+def evaluate(model: dsl.Input[dsl.Model], metrics: dsl.Output[dsl.Metrics]) -> float:
+    ...
+
+@dsl.pipeline(name="churn-training")
+def pipeline(table: str = "bq://PROJECT_ID.shop.train", min_auc_pr: float = 0.65):
+    ok = validate_data(table=table)
+    with dsl.If(ok.output == True):
+        train = CustomTrainingJobOp(display_name="train", worker_pool_specs=[...])
+        score = evaluate(model=...)
+        with dsl.If(score.output >= min_auc_pr):      # model validation gate
+            ...  # ModelUploadOp → ModelDeployOp (or register as "challenger")
+
+compiler.Compiler().compile(pipeline, "pipeline.yaml")
+# aiplatform.PipelineJob(display_name="churn", template_path="pipeline.yaml",
+#                        enable_caching=True, parameter_values={...}).submit()</code></pre>
+<div class="note">The KFP SDK's exact syntax (for example <code>dsl.If</code> versus the older <code>dsl.Condition</code>) varies by version; questions focus on concepts: components, artifacts, parameters, conditions, caching and lineage.</div>
+<h3>TFX components (TensorFlow Extended)</h3>
+<table>
+  <tr><th>Component</th><th>Job</th></tr>
+  <tr><td>ExampleGen</td><td>Ingest and split data</td></tr>
+  <tr><td>StatisticsGen, SchemaGen, <strong>ExampleValidator</strong></td><td>Data statistics, an inferred schema, and anomaly detection (TensorFlow Data Validation, TFDV)</td></tr>
+  <tr><td><strong>Transform</strong></td><td>TensorFlow Transform: full-pass preprocessing (vocabularies, normalization) exported <em>into the serving graph</em>, so serving applies identical transforms</td></tr>
+  <tr><td>Trainer, Tuner</td><td>Train and tune</td></tr>
+  <tr><td><strong>Evaluator</strong></td><td>TensorFlow Model Analysis: metrics overall and by slice; "blesses" the model only if it beats thresholds or the current model</td></tr>
+  <tr><td>InfraValidator, Pusher</td><td>Check the model loads and serves; push blessed models to serving</td></tr>
+</table>
+<h3>Validating data and models</h3>
+<ul>
+  <li><strong>Data validation</strong>: schema (types, required columns), ranges, null rates, category values, distribution shifts against training statistics. Stop the pipeline on failure instead of training on bad data.</li>
+  <li><strong>Model validation</strong>: compare the candidate with thresholds and with the current production model, overall <em>and per slice</em> (region, device, demographic group) to catch hidden regressions and fairness issues. Only then register or deploy.</li>
+  <li><strong>Infrastructure validation</strong>: the model loads in the serving container and answers within latency limits.</li>
+</ul>
+<h3>Consistent preprocessing between training and serving</h3>
+<table>
+  <tr><th>Approach</th><th>How it guarantees consistency</th></tr>
+  <tr><td>BigQuery ML <code>TRANSFORM</code></td><td>Preprocessing stored with the model, applied by <code>ML.PREDICT</code></td></tr>
+  <tr><td>TensorFlow Transform</td><td>Transform graph attached to the serving model</td></tr>
+  <tr><td>Preprocessing layers inside the model (Keras preprocessing, scikit-learn <code>Pipeline</code>)</td><td>The saved artifact contains the logic</td></tr>
+  <tr><td>Feature Store</td><td>The same feature definitions feed training (offline) and serving (online)</td></tr>
+  <tr><td>Custom prediction routine</td><td>One Python preprocessing function used in both</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="retrain">2. Retraining and CI/CD/CT</h2>
+<h3>Retraining policy</h3>
+<table>
+  <tr><th>Trigger</th><th>Good for</th><th>Risk</th></tr>
+  <tr><td>Schedule (daily, weekly)</td><td>Steady data change; simple to run</td><td>Retrains when nothing changed (cost) or too late when things change fast</td></tr>
+  <tr><td>New data volume (for example every 100k labelled rows)</td><td>Label arrival drives value</td><td>Needs data counting</td></tr>
+  <tr><td><strong>Monitoring alert</strong> (drift or skew above threshold)</td><td>Retrain when inputs change</td><td>Drift doesn't always hurt accuracy</td></tr>
+  <tr><td><strong>Performance drop</strong> on ground truth</td><td>Retrain when it matters</td><td>Labels may arrive weeks late</td></tr>
+  <tr><td>On demand (code change)</td><td>New features or architecture</td><td>Through CI/CD, not by hand</td></tr>
+</table>
+<div class="key">Choose the policy from <strong>how fast the world changes</strong>, <strong>how soon labels arrive</strong>, and <strong>what retraining costs</strong>. Always gate an automatic retrain with evaluation against the current model before it reaches users.</div>
+<h3>CI/CD/CT</h3>
+<table>
+  <tr><th>Practice</th><th>Meaning in ML</th><th>Google Cloud pieces</th></tr>
+  <tr><td><strong>Continuous integration (CI)</strong></td><td>On every commit: unit-test components and data checks, build containers, compile the pipeline</td><td>Cloud Build triggers on the repository, Artifact Registry for images and pipeline templates</td></tr>
+  <tr><td><strong>Continuous delivery (CD)</strong></td><td>Deploy the new pipeline (and, after validation, models) to staging then production</td><td>Cloud Build, Cloud Deploy, approvals</td></tr>
+  <tr><td><strong>Continuous training (CT)</strong></td><td>The pipeline itself retrains on schedule or trigger</td><td>Pipeline schedules, Cloud Scheduler, Pub/Sub or Eventarc triggers, Cloud Run functions</td></tr>
+</table>
+<p>Google's MLOps maturity levels: <strong>level 0</strong> is manual notebooks and hand deployment; <strong>level 1</strong> automates training with a pipeline (CT); <strong>level 2</strong> automates the pipeline's own build, test and deployment (CI/CD of the pipeline).</p>
+<pre><code># cloudbuild.yaml (sketch): test, build the trainer image, compile and upload the pipeline
+steps:
+- name: python:3.11
+  entrypoint: bash
+  args: ["-c", "pip install -r requirements.txt &amp;&amp; pytest tests/"]
+- name: gcr.io/cloud-builders/docker
+  args: ["build", "-t", "us-docker.pkg.dev/PROJECT_ID/ml/trainer:$SHORT_SHA", "trainer/"]
+- name: python:3.11
+  entrypoint: bash
+  args: ["-c", "pip install kfp &amp;&amp; python compile_pipeline.py &amp;&amp; python upload_template.py"]
+images: ["us-docker.pkg.dev/PROJECT_ID/ml/trainer:$SHORT_SHA"]</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="maturity">3. MLOps maturity at a glance</h2>
+<table>
+  <tr><th>Level</th><th>What it looks like</th><th>Typical exam fix</th></tr>
+  <tr><td>0: manual</td><td>Notebooks, CSV exports, hand-uploaded models, no lineage</td><td>Move training into a pipeline reading BigQuery directly; register models</td></tr>
+  <tr><td>1: pipeline automation (CT)</td><td>Pipeline retrains on schedule or trigger with validation gates</td><td>Add data and model validation, evaluation against production, scheduled or triggered runs</td></tr>
+  <tr><td>2: CI/CD of the pipeline</td><td>Code changes are tested, built and deployed automatically</td><td>Cloud Build triggers, Artifact Registry, staged rollout with approvals</td></tr>
+</table>
+<div class="mn"><strong>Gate before you ship:</strong> validate data → train → evaluate against the champion → register only if better → deploy gradually.</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">4. Lab: a Kubeflow pipeline with a validation gate</h2>
+<ol>
+  <li>Create three lightweight components: <code>validate_data</code> (checks row count and nulls), <code>train</code>, and <code>evaluate</code> (returns a metric).</li>
+  <li>Wire them with conditions so training only runs when validation passes, and registration happens only when the metric beats the current production model.</li>
+  <li>Compile to YAML, submit with <code>PipelineJob(enable_caching=True)</code>, then re-run unchanged and watch cached steps skip.</li>
+  <li>Open the lineage view for the resulting model and trace it back to the dataset and run parameters.</li>
+  <li>Add a Cloud Build trigger that runs component unit tests and recompiles the pipeline on each commit.</li>
+  <li>Create a weekly schedule for the pipeline; then delete the schedule.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="chooser">5. "Which orchestrator?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">6. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>Pipeline run (console summary)</code><span class="smp-what">A run where the model validation gate stopped deployment</span></summary><pre><code>Run: churn-training-20261114-0200   State: SUCCEEDED
+  validate-data        SUCCEEDED   (cached)
+  train                SUCCEEDED   41m
+  evaluate             SUCCEEDED   3m     output: 0.612
+  condition-1 (score &gt;= 0.65)  SKIPPED
+    model-upload       NOT_TRIGGERED
+    model-deploy       NOT_TRIGGERED</code></pre><p class="smp-read"><strong>What to look at:</strong> The run succeeded, but the new model scored 0.612, below the 0.65 gate, so nothing was registered or deployed: the pipeline did its job. The data validation step reused a cached result because its inputs didn't change.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">7. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">8. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. KFP, caching, TFX, Airflow, Cloud Build, CT…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">9. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">10. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Agent Platform Pipelines for ML lineage; Airflow for data-platform orchestration.</strong></li>
+<li><strong>Never auto-deploy without an evaluation gate</strong> against the current model.</li>
+<li><strong>Retraining policy follows the data</strong>: schedules, data volume, drift or performance triggers.</li>
+<li><strong>Late labels mean you can't wait for accuracy drops</strong>; use drift and schedules.</li>
+<li><strong>CI tests code and builds images; CT retrains; CD deploys.</strong></li>
+<li><strong>Caching needs deterministic inputs.</strong></li>
+<li><strong>Validate data before training</strong>; schema changes otherwise train garbage.</li>
+<li><strong>Build containers in CI</strong> and tag by commit for reproducibility.</li>
+<li><strong>Composer is now Managed Service for Apache Airflow</strong>; the gcloud composer commands remain.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">11. Practice quiz (18 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="serving-scaling.html">← Serving and scaling</a><a href="responsible-ai-monitoring.html">Next: Security, responsible AI and monitoring →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Repeatable train-evaluate-deploy with lineage", "Agent Platform Pipelines (Kubeflow Pipelines)", "Managed ML orchestration with artifacts, caching and ML Metadata.", "A cron job running a notebook"],
+  ["Orchestrate nightly ETL across many systems, then kick off training", "Managed Service for Apache Airflow triggering a pipeline", "Airflow orchestrates the data platform; the ML pipeline keeps ML lineage.", "Writing ETL inside the ML pipeline"],
+  ["Python-native distributed data prep, training and tuning", "Ray on Agent Platform", "Ray Data, Train and Tune managed.", "Airflow"],
+  ["Rerun a pipeline after changing only the training step", "Pipeline caching", "Unchanged upstream steps are reused.", "Disabling caching"],
+  ["Start from a proven tabular pipeline", "Tabular Workflows / pipeline templates", "Prebuilt, configurable pipelines.", "Writing every component from scratch"],
+  ["Retrain when monitored drift crosses a threshold", "Monitoring alert → Pub/Sub → trigger pipeline", "Event-driven continuous training.", "Manual weekly retrain"],
+  ["Labels arrive 90 days late, inputs shift gradually", "Retrain on schedule or drift alerts; evaluate when labels land", "Can't wait for ground truth.", "Retrain only on accuracy drop"],
+  ["Every commit should test components and recompile the pipeline", "Cloud Build trigger (CI)", "Automated tests and builds.", "Running tests by hand"],
+  ["Promote a model only if it beats production", "Evaluation step comparing with the champion + condition", "Prevents regressions.", "Always deploying the newest model"],
+  ["Same preprocessing in training and serving for TensorFlow", "TensorFlow Transform", "Full-pass statistics exported with the model graph.", "Separate Python scripts"]
+];
+
+const samples = [
+  ["Pipeline run (console summary)", "A run where the model validation gate stopped deployment", "Run: churn-training-20261114-0200   State: SUCCEEDED\n  validate-data        SUCCEEDED   (cached)\n  train                SUCCEEDED   41m\n  evaluate             SUCCEEDED   3m     output: 0.612\n  condition-1 (score >= 0.65)  SKIPPED\n    model-upload       NOT_TRIGGERED\n    model-deploy       NOT_TRIGGERED", "The run succeeded, but the new model scored 0.612, below the 0.65 gate, so nothing was registered or deployed: the pipeline did its job. The data validation step reused a cached result because its inputs didn't change."]
+];
+
+const traps = [
+  "<strong>Agent Platform Pipelines for ML lineage; Airflow for data-platform orchestration.</strong>",
+  "<strong>Never auto-deploy without an evaluation gate</strong> against the current model.",
+  "<strong>Retraining policy follows the data</strong>: schedules, data volume, drift or performance triggers.",
+  "<strong>Late labels mean you can't wait for accuracy drops</strong>; use drift and schedules.",
+  "<strong>CI tests code and builds images; CT retrains; CD deploys.</strong>",
+  "<strong>Caching needs deterministic inputs.</strong>",
+  "<strong>Validate data before training</strong>; schema changes otherwise train garbage.",
+  "<strong>Build containers in CI</strong> and tag by commit for reproducibility.",
+  "<strong>Composer is now Managed Service for Apache Airflow</strong>; the gcloud composer commands remain."
+];
+
+const questions = [
+  { q: "A company needs a repeatable workflow: validate data, train, evaluate against the production model, then register and deploy, with lineage. What should they use?", opts: ["A notebook run by hand", "Agent Platform Pipelines with conditional steps", "A cron job on a VM", "Cloud Vision API"], a: 1, why: "Pipelines provide managed orchestration, conditions, caching and lineage." },
+  { q: "The data platform team already orchestrates hundreds of ETL DAGs and wants the ML training pipeline to start after the daily load finishes. What's a good design?", opts: ["Rewrite all ETL inside the ML pipeline", "Run training inside BigQuery views", "Start training manually each morning", "Managed Service for Apache Airflow triggers the Agent Platform pipeline after the load"], a: 3, why: "Airflow orchestrates the wider data platform; the ML pipeline keeps ML lineage and artifacts." },
+  { q: "A pipeline retrains nightly and has twice deployed worse models. What should be added?", opts: ["A model validation gate comparing the candidate with the current model, overall and by slice, before deployment", "More frequent retraining", "Larger machines", "Disabling caching"], a: 0, why: "Continuous training needs evaluation gates so only better models are promoted." },
+  { q: "A TensorFlow model needs vocabulary and normalization computed over the full training set, applied identically at serving. What's designed for this?", opts: ["TensorFlow Data Validation", "Cloud Build", "TensorFlow Transform", "Model Armor"], a: 2, why: "TensorFlow Transform computes full-pass statistics and exports the transform graph with the model." },
+  { q: "Labels for a credit-risk model arrive about 90 days after each decision, but input data changes gradually. Which retraining approach is most sensible?", opts: ["Retrain every hour", "Never retrain", "Monitor input drift for early warning, retrain on a schedule as labels mature, and gate on evaluation", "Retrain only when a customer complains"], a: 2, why: "Delayed labels limit performance-based triggers; drift monitoring gives early signal and scheduled retraining uses matured labels." },
+  { q: "Which setup implements CI for an ML pipeline on Google Cloud?", opts: ["Cloud Build triggered on commits runs unit tests, builds component images to Artifact Registry and compiles the pipeline", "Manually copying code to a notebook", "Model Monitoring alerts", "A traffic split"], a: 0, why: "CI tests and builds pipeline code and images automatically on change." },
+  { q: "After changing only the evaluation component, the whole pipeline reruns every step. What should you check?", opts: ["That the pipeline uses GPUs", "That Airflow is installed", "The endpoint's min replicas", "That caching is enabled and upstream component inputs are deterministic"], a: 3, why: "Caching reuses steps whose inputs and code are unchanged." },
+  { q: "Monitoring alerts on feature drift should automatically start retraining. What's a good design?", opts: ["Email the team to retrain manually", "Send the alert to Pub/Sub and trigger the pipeline (for example via Eventarc or a Cloud Run function)", "Retrain every hour regardless", "Disable monitoring"], a: 1, why: "Event-driven continuous training." },
+  { q: "Which describes MLOps level 2?", opts: ["The pipeline's own code is tested, built and deployed automatically (CI/CD), in addition to automated training", "Manual notebook training", "A scheduled notebook", "Only model monitoring"], a: 0, why: "Level 1 automates training; level 2 automates the pipeline lifecycle." },
+  { q: "Engineers build pipeline containers on laptops and results differ between them. What's the fix?", opts: ["Use bigger laptops", "Skip containers", "Build images in Cloud Build on each commit and push to Artifact Registry, referenced by tag or digest", "Disable caching"], a: 2, why: "CI builds give reproducible artifacts." },
+  { q: "Which component is designed to compute vocabularies and normalization over the full dataset and apply them identically at serving for a TensorFlow model?", opts: ["Pusher", "Model Armor", "Cloud Scheduler", "TensorFlow Transform"], a: 3, why: "tf.Transform exports the preprocessing graph with the model." },
+  { q: "An upstream team renamed a column, and last night's pipeline trained a model on mostly null features. What should the pipeline have included?", opts: ["More training epochs", "A data validation step (schema and anomaly checks) that fails the run before training", "A larger machine type", "A higher learning rate"], a: 1, why: "Validation catches schema changes before they reach training." },
+  { q: "Which orchestrator records artifact lineage (datasets, models, runs) automatically for ML workflows?", opts: ["Cloud Scheduler", "Managed Service for Apache Airflow on its own", "Cron on a VM", "Agent Platform Pipelines (via ML Metadata)"], a: 3, why: "Pipelines write lineage to ML Metadata." },
+  { q: "Python data scientists want to scale existing Ray Tune and Ray Train code without managing clusters. What fits?", opts: ["Ray on Agent Platform", "Dataflow templates", "BigQuery scheduled queries", "Cloud Functions"], a: 0, why: "Managed Ray clusters run Ray workloads directly." },
+  { q: "Weekly retraining runs even when data barely changes, wasting money. What's a better policy?", opts: ["Retrain daily instead", "Trigger retraining on drift alerts or new labelled data volume, with a slower safety schedule", "Never retrain", "Retrain only when users complain"], a: 1, why: "Retraining should follow meaningful change." },
+  { q: "What's the role of Artifact Registry in ML CI/CD?", opts: ["Stores training data", "Monitors drift", "Stores versioned container images and pipeline templates", "Hosts endpoints"], a: 2, why: "Built artifacts live in Artifact Registry." },
+  { q: "A pipeline must deploy a new model only if its PR AUC beats production by at least 0.01. How do you implement this?", opts: ["An evaluation component comparing with the champion, then a pipeline condition guarding register and deploy", "Deploy always and roll back on complaints", "Check manually in the console each night", "Use Cloud CDN"], a: 0, why: "Conditional steps implement the promotion gate." },
+  { q: "A team wants new models promoted only after a human sign-off following a canary. What fits?", opts: ["Auto-deploy every pipeline run", "Email attachments of model files", "Skip the canary", "Staged CD with approvals (Cloud Build / Cloud Deploy) and Model Registry aliases"], a: 3, why: "Approvals and aliases control promotion." }
+];
+
+const scenarios = [
+  {"t": "Nightly pipeline retrains and deploys a worse model", "diag": "Review the pipeline: is there an evaluation gate against the current model?", "cause": "Continuous training without model validation.", "fix": "Add a conditional gate (metrics and slices vs champion) before registration and deployment, and canary the rollout."},
+  {"t": "Pipeline reruns every step after a one-line change in evaluation", "diag": "Check caching settings and component inputs.", "cause": "Caching disabled or inputs change every run (timestamps).", "fix": "Enable caching; make component inputs deterministic."},
+  {"t": "Retraining weekly wastes money when nothing changed", "diag": "Compare retraining frequency with monitored drift.", "cause": "Purely schedule-driven.", "fix": "Trigger on drift or new labelled data volume; keep a slow safety schedule."},
+  {"t": "Model promoted to production without anyone reviewing it", "diag": "Review CD stages.", "cause": "No approval or staged rollout.", "fix": "Register as a candidate, canary, then promote with approval and aliases."},
+  {"t": "Pipeline images built on laptops differ between engineers", "diag": "Check where containers are built.", "cause": "No CI build.", "fix": "Cloud Build builds and pushes images to Artifact Registry by commit SHA."},
+  {"t": "Airflow DAG trains models in a PythonOperator; no lineage exists", "diag": "Ask which data produced the current model.", "cause": "Orchestrator without ML metadata.", "fix": "Airflow triggers an Agent Platform pipeline that records lineage."},
+  {"t": "Data schema changed upstream and the pipeline trained on garbage", "diag": "Look for data validation steps.", "cause": "No schema or anomaly checks.", "fix": "TFDV / ExampleValidator step that fails the run on anomalies."}
+];
+
+const cheat = [
+  ["Agent Platform Pipelines", "Serverless Kubeflow Pipelines / TFX with lineage and caching"],
+  ["KFP component / pipeline", "@dsl.component steps wired in a @dsl.pipeline"],
+  ["Pipeline caching", "Skip steps whose inputs haven't changed"],
+  ["Google Cloud Pipeline Components", "Prebuilt pipeline steps for training, upload, deploy, BigQuery"],
+  ["TFDV / ExampleValidator", "Data statistics, schema and anomaly checks"],
+  ["TensorFlow Transform", "Full-pass preprocessing exported into the serving graph"],
+  ["TFX Evaluator (blessing)", "Model validation against thresholds or the current model"],
+  ["Cloud Build", "CI/CD: tests, image builds, pipeline compilation"],
+  ["Artifact Registry", "Container images and pipeline templates"],
+  ["Continuous training (CT)", "Automated retraining by the pipeline"],
+  ["MLOps levels 0 / 1 / 2", "Manual / automated training pipeline / automated pipeline CI/CD"],
+  ["KFP v2", "Kubeflow Pipelines SDK used by Agent Platform Pipelines"],
+  ["dsl.If / dsl.Condition", "Conditional steps in KFP"],
+  ["PipelineJob", "Submit a compiled pipeline run"],
+  ["Pipeline schedule", "Recurring runs"],
+  ["Eventarc / Pub/Sub trigger", "Start pipelines on events"],
+  ["Champion / challenger", "Production model vs candidate"],
+  ["Model aliases", "Named pointers (e.g. champion) to registry versions"],
+  ["Cloud Deploy", "Managed continuous delivery with approvals"],
+  ["Ray on Agent Platform", "Managed Ray clusters"],
+  ["Tabular Workflows", "Configurable AutoML pipelines"]
+];
+
+const cards = [
+  ["ML orchestration with lineage", "Agent Platform Pipelines"],
+  ["Data platform orchestration", "Managed Airflow (formerly Composer)"],
+  ["CI for ML pipelines", "Cloud Build + Artifact Registry"],
+  ["Cloud Composer is now…", "Managed Service for Apache Airflow"],
+  ["Default ML orchestrator", "Agent Platform Pipelines"],
+  ["Data platform DAGs", "Managed Service for Apache Airflow"],
+  ["Skip unchanged steps", "Pipeline caching"],
+  ["Stop bad models shipping", "Evaluation gate vs champion"],
+  ["Retrain trigger from monitoring", "Alert → Pub/Sub → pipeline"],
+  ["MLOps level 1", "Automated training pipeline (CT)"],
+  ["MLOps level 2", "CI/CD of the pipeline itself"],
+  ["Full-pass preprocessing in TF", "TensorFlow Transform"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+</script>
+</body>
+</html>

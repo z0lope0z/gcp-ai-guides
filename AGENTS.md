@@ -16,6 +16,10 @@ self-contained `.html` file; there's no build step, framework or package manager
 - Before creating a guide, check whether the topic belongs as a section in an
   existing one. New guides go into both `index.html` (under their certification's
   heading) and `README.md`.
+- PMLE is split into topic guides linked in study order by a "previous / next"
+  pager at the bottom of each page. When adding, removing or reordering a PMLE
+  guide, update the neighbouring pagers and the redirect map in
+  `pmle-mastery.html`.
 - Never copy exam or practice-test questions verbatim and never label content
   with question numbers. Never commit secrets or identifying details; use
   placeholders such as `PROJECT_ID` and `BUCKET`.

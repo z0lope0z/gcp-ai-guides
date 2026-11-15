@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PMLE Exam Overview, Renames and Strategy</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">All sections</span></div>
+<h1>PMLE exam overview, renames and strategy</h1>
+<p class="subtitle">Start here. What the Google Cloud Professional Machine Learning Engineer exam covers (June 2026 guide), where study time pays off, the 2026 product renames, how to read Google's scenario questions, and a "which service?" chooser across the whole exam.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#exam">The exam at a glance</a></li>
+    <li><a href="#time">Where study time pays off</a></li>
+    <li><a href="#renames">The 2026 renames</a></li>
+    <li><a href="#strategy">How to read Google scenario questions</a></li>
+    <li><a href="#chooser">"Which service?" chooser</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (16 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="exam">1. The exam at a glance</h2>
+<p>The Professional Machine Learning Engineer (PMLE) exam tests whether you can <strong>choose and operate the right approach and Google Cloud service</strong> at each stage of an ML system, for classic predictive ML and for generative AI (gen AI). It's a judgement exam: the guide says coding isn't assessed directly, but you should be able to read Python and SQL snippets.</p>
+<table>
+  <tr><th>Item</th><th>Detail</th></tr>
+  <tr><td>Format</td><td>Multiple choice and multiple select, about 50–60 questions in 2 hours, at a test centre or online-proctored</td></tr>
+  <tr><td>Result</td><td>Pass or fail; no published passing score</td></tr>
+  <tr><td>Recommended experience</td><td>3+ years in industry, including 1+ year designing and managing solutions on Google Cloud</td></tr>
+  <tr><td>Validity</td><td>2 years</td></tr>
+</table>
+<div class="note">Logistics (price, languages, question count) change; confirm on the official certification page. Sections and weights below are from the exam guide dated June 1, 2026.</div>
+<table>
+  <tr><th>Exam section</th><th>Weight</th><th>Guides</th></tr>
+  <tr><td>1. Architecting low-code AI solutions</td><td>~13%</td><td><a href="bigquery-ml-automl-apis.html">BigQuery ML, AutoML and AI APIs</a>, <a href="gcp-genai-stack.html">Gen AI stack</a></td></tr>
+  <tr><td>2. Collaborating within and across teams to manage data and models</td><td>~16%</td><td><a href="data-notebooks-experiments.html">Data, Feature Store, notebooks, experiments</a>, <a href="ml-data-features-imbalance.html">Fundamentals 1</a>, <a href="ml-model-evaluation.html">Fundamentals 2</a>, <a href="llm-evaluation.html">LLM evaluation</a></td></tr>
+  <tr><td>3. Scaling prototypes into ML models</td><td>~21%</td><td><a href="training-tuning-hardware.html">Training, tuning and hardware</a>, <a href="ml-model-evaluation.html">Fundamentals 2</a>, <a href="gcp-genai-stack.html">Gen AI stack</a></td></tr>
+  <tr><td>4. Serving and scaling models</td><td>~20%</td><td><a href="serving-scaling.html">Serving and scaling</a></td></tr>
+  <tr><td>5. Automating and orchestrating ML pipelines</td><td>~18%</td><td><a href="pipelines-mlops.html">Pipelines and MLOps</a></td></tr>
+  <tr><td>6. Monitoring AI solutions</td><td>~13%</td><td><a href="responsible-ai-monitoring.html">Security, responsible AI and monitoring</a>, <a href="rag-failure-modes.html">RAG failure modes</a>, <a href="llm-evaluation.html">LLM evaluation</a></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="time">2. Where study time pays off</h2>
+<p>Most candidates who already know Google Cloud lose points in two places, so most of your study time should go there:</p>
+<table>
+  <tr><th>Area</th><th>Why it matters</th><th>Guides</th></tr>
+  <tr><td><strong>ML fundamentals</strong>: feature engineering, leakage, class imbalance, bias-variance, regularization, evaluation metrics (PR AUC vs ROC AUC, thresholds, calibration)</td><td>Many scenario questions hinge on a fundamentals judgement wrapped in a Google Cloud story: "the model is 99% accurate but…", "training loss falls while validation loss rises…". The service is often obvious; the ML reasoning isn't.</td><td><a href="ml-data-features-imbalance.html">Fundamentals 1</a>, <a href="ml-model-evaluation.html">Fundamentals 2</a></td></tr>
+  <tr><td><strong>The gen AI stack</strong>: Gemini and Model Garden on Agent Platform, prompting vs grounding vs tuning, RAG and how it fails, LLM and agent evaluation, gen AI safety</td><td>The 2026 guide adds gen AI to nearly every section: model choice, tuning, cost and latency, evaluation with LLM-as-a-judge, Model Armor, monitoring gen AI. Product names also changed, which trips people who studied older material.</td><td><a href="gcp-genai-stack.html">Gen AI stack</a>, <a href="rag-failure-modes.html">RAG failure modes</a>, <a href="llm-evaluation.html">LLM evaluation</a></td></tr>
+  <tr><td>MLOps on Google Cloud: pipelines, serving, monitoring</td><td>Heavily weighted, but very pattern-based: learn the managed option and its gotchas</td><td><a href="pipelines-mlops.html">Pipelines</a>, <a href="serving-scaling.html">Serving</a>, <a href="responsible-ai-monitoring.html">Monitoring</a></td></tr>
+</table>
+<h3>Suggested study path</h3>
+<ol>
+  <li>This page, then the two fundamentals guides. Do every calculator until the numbers feel obvious.</li>
+  <li>The gen AI trio: <a href="gcp-genai-stack.html">stack</a>, <a href="rag-failure-modes.html">RAG</a>, <a href="llm-evaluation.html">evaluation</a>.</li>
+  <li>Section guides in exam order: low-code, data, training, serving, pipelines, monitoring.</li>
+  <li>Hands-on labs in a sandbox project (each guide that has one ends its theory with it).</li>
+  <li>Quizzes again, a week later. Re-read the "Common gotchas" list of every guide the night before.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="renames">3. The 2026 renames</h2>
+<p>In April 2026 Google folded Vertex AI into <strong>Gemini Enterprise Agent Platform</strong> ("Agent Platform") and renamed Cloud Composer to <strong>Managed Service for Apache Airflow</strong>. The exam uses the new names; most courses, blogs and code still use the old ones. APIs stayed backward compatible: the Python package is still <code>google-cloud-aiplatform</code>, the API host is still <code>aiplatform.googleapis.com</code>, and the CLI is still <code>gcloud ai</code> and <code>gcloud composer</code>.</p>
+<table>
+  <tr><th>Old name</th><th>2026 name</th></tr>
+  <tr><td>Vertex AI</td><td>Gemini Enterprise Agent Platform (Agent Platform)</td></tr>
+  <tr><td>Vertex AI Studio</td><td>Agent Studio</td></tr>
+  <tr><td>Vertex AI Model Garden</td><td>Agent Platform Model Garden</td></tr>
+  <tr><td>Vertex AI Workbench / Colab Enterprise</td><td>Agent Platform Workbench / Colab Enterprise</td></tr>
+  <tr><td>Vertex AI Training</td><td>Agent Platform Managed Training (and Serverless Training, Managed Training Clusters)</td></tr>
+  <tr><td>Vertex AI Prediction / Endpoints / Batch Prediction</td><td>Agent Platform Inference: Online Inference, Endpoints, Batch Inference</td></tr>
+  <tr><td>Vertex AI Pipelines, Experiments, Feature Store, Model Registry, ML Metadata, Model Monitoring</td><td>Same names, on Agent Platform</td></tr>
+  <tr><td>Vertex AI Search</td><td>Agent Search</td></tr>
+  <tr><td>Vertex AI Vector Search</td><td>Vector Search (Vector Search 2.0 is now Agent Retrieval)</td></tr>
+  <tr><td>Vertex AI Agent Engine</td><td>Agent Runtime (with Sessions, Memory Bank, Code Execution)</td></tr>
+  <tr><td>Gen AI evaluation service</td><td>Agent Platform Evals</td></tr>
+  <tr><td>Cloud Composer</td><td>Managed Service for Apache Airflow (Managed Airflow)</td></tr>
+  <tr><td>Cloud DLP</td><td>Sensitive Data Protection (earlier rename; the DLP API keeps its name)</td></tr>
+</table>
+<div class="key">An answer that says "Vertex AI Pipelines" and one that says "Agent Platform Pipelines" describe the same product. Never eliminate an answer because it uses an old name.</div>
+
+<!-- ============================================================ -->
+<h2 id="strategy">4. How to read Google scenario questions</h2>
+<p>Most questions describe a company, a constraint and a goal, then offer four designs that would all work in some sense. The right one meets the <strong>binding constraint</strong> with the <strong>least custom work</strong>.</p>
+<ol>
+  <li><strong>Find the binding constraint.</strong> "Minimal code" or "analysts know SQL"; "lowest latency"; "lowest cost"; "data must not leave the VPC"; "must explain each prediction"; "small labelled dataset"; "fastest time to market"; "existing Spark/Kubeflow investment".</li>
+  <li><strong>Climb the managed ladder from the bottom</strong> and stop at the first rung that meets every requirement.</li>
+  <li><strong>Move code to the data.</strong> Data in BigQuery points to BigQuery ML or a BigQuery-sourced pipeline, not a CSV export.</li>
+  <li><strong>Prefer managed services</strong> (Pipelines over cron scripts, Model Monitoring over hand-built histogram jobs) unless the question rules them out.</li>
+  <li><strong>Check the ML reasoning</strong> even when the service is obvious: leakage, imbalance, the right metric, the right split.</li>
+  <li><strong>Eliminate the over-engineered and the under-powered.</strong> TPU custom training for 10,000 tabular rows is wrong; so is AutoML when the team needs a custom loss.</li>
+</ol>
+<table>
+  <tr><th>Rung</th><th>Option</th><th>Use when</th></tr>
+  <tr><td>1</td><td>Prebuilt API (Vision, Document AI, Translation, Speech)</td><td>Generic task; standard classes are fine</td></tr>
+  <tr><td>2</td><td>BigQuery ML or AutoML</td><td>Your labels, tabular or image data, little or no ML code</td></tr>
+  <tr><td>3</td><td>Gemini or another Model Garden model: prompt, then ground, then tune</td><td>Language, documents, multimodal, generation</td></tr>
+  <tr><td>4</td><td>Managed custom training on Agent Platform</td><td>Your architecture, loss, framework or scale</td></tr>
+  <tr><td>5</td><td>Self-managed on GKE, Ray or Compute Engine</td><td>Existing platform, special scheduling or control the managed path can't give</td></tr>
+</table>
+<div class="mn"><strong>"API, SQL, Auto, Gemini, Custom, DIY."</strong> From least to most effort. The exam usually wants the lowest rung that satisfies every stated requirement.</div>
+<div class="warn">"Technically correct but more work" is the most common wrong answer. When two answers both work, choose the more managed one that keeps data where it is and meets the constraint.</div>
+<h3>Multiple-select questions</h3>
+<ul>
+  <li>The stem says how many to pick ("Choose two"). Each chosen option must be independently true and relevant.</li>
+  <li>Watch for one option that is true but doesn't address the stated problem.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="chooser">5. "Which service?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">6. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">7. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. Agent Platform, Composer, ladder, managed…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">8. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">9. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Old and new names are the same product</strong>: Vertex AI = Agent Platform; Composer = Managed Airflow; DLP = Sensitive Data Protection.</li>
+<li><strong>Lowest rung that meets every requirement</strong>; extra custom work is the usual wrong answer.</li>
+<li><strong>Keep the data where it is</strong>: BigQuery data suggests BigQuery ML or BigQuery-sourced training.</li>
+<li><strong>Check the fundamentals</strong> inside cloud stories: leakage, imbalance, metric choice, time-based splits.</li>
+<li><strong>Fresh facts need grounding, not tuning.</strong></li>
+<li><strong>Managed beats DIY</strong> unless the stem names an existing platform or a requirement only DIY meets.</li>
+<li><strong>Multiple select</strong>: every chosen option must be true and address the problem.</li>
+<li><strong>Security words change the answer</strong>: "no public internet", "exfiltration", "PII", "CMEK".</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">10. Practice quiz (16 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="index.html">← All guides</a><a href="ml-data-features-imbalance.html">Next: ML fundamentals 1: data, features, imbalance →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Read text and labels in photos, no custom classes", "Cloud Vision API", "Prebuilt models already recognize common objects and text; nothing to train.", "Training an AutoML image model"],
+  ["Extract fields from invoices into a database", "Document AI (invoice or custom extractor processor)", "Purpose-built document parsing with structured output.", "Vision OCR plus hand-written parsing code"],
+  ["Analysts with SQL want a churn model on BigQuery data", "BigQuery ML", "Trains and scores where the data lives, in SQL.", "Exporting to CSV for a custom TensorFlow job"],
+  ["Best image classifier for our own labels, no ML engineers", "AutoML image classification", "Custom labels without writing model code.", "Cloud Vision API (fixed label set)"],
+  ["Forecast demand for 5,000 stores from BigQuery", "BigQuery ML ARIMA_PLUS with time_series_id_col", "One statement trains a model per series, with seasonality and holidays.", "A custom LSTM per store"],
+  ["Chatbot must answer from policy documents that change weekly", "Gemini grounded with RAG Engine or Agent Search", "Retrieval keeps answers current and citable.", "Fine-tuning Gemini on the documents"],
+  ["Gemini must always output our ticket categories in our format", "Prompting with examples and structured output first; supervised tuning if quality is still short", "Tuning adapts behaviour and format on a narrow task.", "Grounding with Google Search"],
+  ["Same features for training and low-latency serving", "Feature Store on Agent Platform", "One definition, point-in-time training data, millisecond lookups.", "Recomputing features in the app at request time"],
+  ["Large streaming and batch preprocessing with one codebase", "Dataflow (Apache Beam)", "Unified batch and stream model with autoscaling.", "pandas in a notebook"],
+  ["Remove PII from training data", "Sensitive Data Protection de-identification", "Finds and transforms PII, including in free text.", "Dropping the name column"],
+  ["Repeatable train-evaluate-deploy with lineage", "Agent Platform Pipelines", "Managed ML orchestration with artifacts, caching and ML Metadata.", "A cron job running a notebook"],
+  ["Nightly ETL across many systems, then training", "Managed Airflow triggering an Agent Platform pipeline", "Airflow orchestrates the data platform; the ML pipeline keeps ML lineage.", "Writing all ETL inside the ML pipeline"],
+  ["Nightly scores for 10 million customers", "Batch inference (or BigQuery ML ML.PREDICT)", "No always-on endpoint; output lands in BigQuery.", "Calling an online endpoint 10 million times"],
+  ["Test a new model on 5% of live traffic", "Traffic split on the same endpoint (canary)", "Gradual exposure and instant rollback.", "Replacing the deployed model in one step"],
+  ["Predictions must never cross the public internet", "Private endpoint with Private Service Connect", "Private IPs inside your VPC.", "A public endpoint with an API key"],
+  ["Explain each prediction of a boosted-tree model", "Explainable AI with Sampled Shapley", "Works for non-differentiable models.", "Integrated Gradients (needs gradients)"],
+  ["Production inputs no longer look like training data", "Model Monitoring skew detection", "Per-feature distances against the training baseline, with alerts.", "Waiting for users to complain"],
+  ["Block prompt injection and jailbreaks", "Model Armor on prompts and responses", "Purpose-built screening of prompts, responses and URLs.", "Only changing safety filter thresholds"],
+  ["Gemini app gets 429 errors at peak", "Exponential backoff; Provisioned Throughput for steady load", "Shared quota is dynamic; reserved capacity guarantees throughput.", "Creating more projects to dodge quota"],
+  ["Model too large for one GPU", "Model parallelism or FSDP", "Splits parameters across devices.", "MirroredStrategy (copies the whole model to each GPU)"],
+  ["Compare two prompt versions for open-ended answers", "Pairwise LLM-as-a-judge evaluation on a fixed dataset", "No single reference answer; pairwise judgements are more reliable than absolute scores.", "Exact match against one reference"],
+  ["Rare-event classifier, choose a metric", "PR AUC, plus recall at a fixed precision", "Focuses on the rare positive class that matters.", "Accuracy or ROC AUC alone"],
+];
+
+const scenarios = [
+  { t: "Two answers both work; one uses BigQuery ML, one exports data to train a custom model", diag: "Re-read the constraint: SQL skills? minimal effort? data in BigQuery?", cause: "The question is testing the managed ladder.", fix: "Choose BigQuery ML unless the question needs something it can't do (custom architecture, images, online serving with custom logic)." },
+  { t: "An answer uses 'Vertex AI Pipelines' and another 'Agent Platform Pipelines'", diag: "Map the names with the rename table.", cause: "Same product under old and new names.", fix: "Judge the design, not the product name." },
+  { t: "A question describes 99% accuracy on fraud and asks what to do", diag: "Check the class balance in the stem.", cause: "Fundamentals trap: accuracy on imbalanced data.", fix: "Pick the answer that changes the metric (precision, recall, PR AUC) or threshold based on business cost." },
+  { t: "Gen AI app answers with outdated facts", diag: "Does the model have access to current documents?", cause: "No grounding; answers come from training data.", fix: "Ground with retrieval (RAG Engine, Agent Search, Google Search grounding); tuning won't keep facts fresh." },
+  { t: "Model quality drops right after an app release", diag: "Compare serving inputs with training data.", cause: "Training-serving skew from a serving change.", fix: "Fix the serving preprocessing; retraining doesn't fix a pipeline bug." },
+  { t: "Team wants every new model to reach production automatically", diag: "Look for evaluation gates in each answer.", cause: "Continuous training without validation ships regressions.", fix: "Pipeline with a model-validation condition, registry, then canary rollout." },
+  { t: "A regulated bank needs explanations for every decision", diag: "Interpretability is a stated requirement.", cause: "Accuracy-only answers ignore it.", fix: "Interpretable models or Explainable AI attributions, documented per decision." },
+  { t: "Data scientists need GPUs in notebooks without public internet exposure", diag: "Security constraint plus prototyping need.", cause: "Default setups may have public IPs or broad permissions.", fix: "Workbench or Colab Enterprise with no public IP, least-privilege service account, VPC Service Controls." },
+];
+
+const cheat = [
+  ["Gemini Enterprise Agent Platform", "2026 name for Vertex AI"],
+  ["Agent Studio", "Formerly Vertex AI Studio"],
+  ["Agent Runtime", "Formerly Vertex AI Agent Engine"],
+  ["Agent Search", "Formerly Vertex AI Search"],
+  ["Agent Platform Evals", "Formerly the gen AI evaluation service"],
+  ["Managed Service for Apache Airflow", "Formerly Cloud Composer"],
+  ["Sensitive Data Protection", "Formerly Cloud DLP"],
+  ["Managed Training", "Formerly Vertex AI Training (custom jobs)"],
+  ["Online / Batch Inference", "Formerly Vertex AI Prediction / Batch Prediction"],
+  ["google-cloud-aiplatform", "Python SDK package; unchanged by the rename"],
+  ["gcloud ai / gcloud composer", "CLI groups; unchanged by the rename"],
+  ["Managed ladder", "API, BigQuery ML/AutoML, Gemini, custom training, DIY"],
+  ["Binding constraint", "The requirement that decides the answer"],
+  ["Move code to data", "Prefer tools that work where the data already lives"],
+  ["~13 / 16 / 21 / 20 / 18 / 13%", "Weights of sections 1–6 (June 2026 guide)"],
+  ["Section 3 (~21%)", "Scaling prototypes: model choice, training, tuning, hardware"],
+  ["Section 4 (~20%)", "Serving and scaling models"],
+  ["Section 5 (~18%)", "Pipelines and retraining"],
+];
+
+const cards = [
+  ["Vertex AI is now…", "Gemini Enterprise Agent Platform"],
+  ["Cloud Composer is now…", "Managed Service for Apache Airflow"],
+  ["Vertex AI Search is now…", "Agent Search"],
+  ["Agent Engine is now…", "Agent Runtime"],
+  ["Gen AI evaluation service is now…", "Agent Platform Evals"],
+  ["Heaviest exam section", "Scaling prototypes into ML models (~21%)"],
+  ["Lowest rung of the ladder", "Prebuilt API"],
+  ["Data in BigQuery + SQL team", "BigQuery ML"],
+  ["Fresh facts for an LLM", "Grounding / RAG"],
+  ["Most common wrong answer type", "Works, but more custom work than needed"],
+  ["Is coding assessed?", "Not directly; read Python and SQL"],
+  ["Two areas to spend most time on", "ML fundamentals and the gen AI stack"],
+];
+
+const traps = [
+  "<strong>Old and new names are the same product</strong>: Vertex AI = Agent Platform; Composer = Managed Airflow; DLP = Sensitive Data Protection.",
+  "<strong>Lowest rung that meets every requirement</strong>; extra custom work is the usual wrong answer.",
+  "<strong>Keep the data where it is</strong>: BigQuery data suggests BigQuery ML or BigQuery-sourced training.",
+  "<strong>Check the fundamentals</strong> inside cloud stories: leakage, imbalance, metric choice, time-based splits.",
+  "<strong>Fresh facts need grounding, not tuning.</strong>",
+  "<strong>Managed beats DIY</strong> unless the stem names an existing platform or a requirement only DIY meets.",
+  "<strong>Multiple select</strong>: every chosen option must be true and address the problem.",
+  "<strong>Security words change the answer</strong>: \"no public internet\", \"exfiltration\", \"PII\", \"CMEK\".",
+];
+
+const questions = [
+  { q: "A retailer's analysts know SQL and keep sales history in BigQuery. They need weekly forecasts for 3,000 stores with minimal engineering. What fits best?", opts: ["Export to Cloud Storage and train one LSTM per store", "BigQuery ML ARIMA_PLUS with the store as the series ID", "Cloud Vision API", "A Gemini prompt per store each week"], a: 1, why: "ARIMA_PLUS forecasts many series in one SQL statement, inside BigQuery." },
+  { q: "An answer mentions 'Vertex AI Endpoints' and another 'Agent Platform Endpoints'. What should you conclude?", opts: ["The Vertex AI option is deprecated and wrong", "Agent Platform Endpoints only serve agents", "Vertex AI Endpoints only serve AutoML", "They're the same product under old and new names; judge the rest of the design"], a: 3, why: "The 2026 rename changed names, not products or APIs." },
+  { q: "Which order reflects Google's 'least custom work first' ladder?", opts: ["Prebuilt API, BigQuery ML/AutoML, foundation model, custom training, self-managed", "Custom training, AutoML, prebuilt API, BigQuery ML", "Self-managed GKE, then prebuilt API", "Foundation model tuning first, always"], a: 0, why: "Start from the most managed option and move up only when requirements demand it." },
+  { q: "A team must extract totals and supplier names from scanned invoices with as little custom work as possible. Which is best?", opts: ["AutoML image classification", "Custom OCR model on GPUs", "Document AI invoice processor", "BigQuery ML k-means"], a: 2, why: "Document AI returns structured invoice fields out of the box." },
+  { q: "A chatbot must answer from HR policies that change every month and cite the source. What's the most appropriate approach?", opts: ["Fine-tune Gemini monthly", "Raise the temperature", "Ground Gemini with retrieval over the policies", "Use the Natural Language API"], a: 2, why: "Grounding provides current facts with citations; tuning doesn't keep facts fresh." },
+  { q: "A fraud model shows 99.7% accuracy with 0.3% fraud in the data. What's the right reaction?", opts: ["Evaluate with precision, recall and PR AUC and set the threshold from business costs", "Deploy: accuracy is excellent", "Add more legitimate transactions to the training data", "Switch to RMSE"], a: 0, why: "Always predicting 'legitimate' scores 99.7%; imbalanced problems need precision/recall metrics." },
+  { q: "Which statement about the PMLE exam is correct?", opts: ["It requires writing code in a live notebook", "It only covers generative AI", "It has a published passing score of 70%", "It doesn't directly assess coding, but includes Python and SQL snippets to read"], a: 3, why: "The exam guide says coding isn't directly assessed; snippets must be understood." },
+  { q: "Which exam section carries the most weight in the June 2026 guide?", opts: ["Architecting low-code AI solutions", "Scaling prototypes into ML models", "Monitoring AI solutions", "Collaborating to manage data and models"], a: 1, why: "Section 3 is about 21%, ahead of serving (about 20%)." },
+  { q: "Predictions must not traverse the public internet, and calls come from services in your VPC. What should you choose?", opts: ["A private endpoint using Private Service Connect", "A public endpoint with an API key", "Batch inference only", "A Cloud Storage signed URL"], a: 0, why: "Private Service Connect exposes the endpoint on private IPs." },
+  { q: "The data platform team orchestrates hundreds of ETL DAGs in Airflow and wants training to start after the daily load. What's a good design?", opts: ["Move all ETL into the ML pipeline", "Retrain manually each morning", "Managed Airflow triggers an Agent Platform pipeline after the load", "Run training in a BigQuery view"], a: 2, why: "Airflow orchestrates the data platform; the ML pipeline keeps ML lineage." },
+  { q: "Model quality collapses right after a mobile release that changed how a feature is sent. What's the best fix?", opts: ["Retrain on the same data", "Add GPUs", "Lower the threshold", "Fix the serving input so it matches training"], a: 3, why: "This is training-serving skew from a bug; retraining won't help." },
+  { q: "A team wants to compare two prompt templates whose outputs are open-ended. Which method is most suitable?", opts: ["Exact match against one reference", "Pairwise LLM-as-a-judge on a fixed evaluation set, spot-checked by humans", "Training loss", "Accuracy"], a: 1, why: "Open-ended outputs need judgement; pairwise comparison is more reliable than absolute scores." },
+  { q: "Daily scores for all customers are written to BigQuery and nobody needs real-time predictions. What should you use?", opts: ["An online endpoint with 20 replicas", "Edge deployment", "A Cloud Run service with min instances", "Batch inference or BigQuery ML ML.PREDICT"], a: 3, why: "Batch scoring avoids paying for always-on serving." },
+  { q: "Users try to make an assistant reveal its system prompt and some paste card numbers. What's the most direct control?", opts: ["Model Armor screening prompts and responses", "A larger model", "Batch inference", "Lower temperature"], a: 0, why: "Model Armor detects prompt injection, jailbreaks and sensitive data." },
+  { q: "Which answer pattern most often signals a wrong choice on this exam?", opts: ["It uses a managed service", "It works, but requires more custom code and infrastructure than another option that also meets every requirement", "It keeps data in BigQuery", "It mentions a canary rollout"], a: 1, why: "Google favours the least effort that satisfies all constraints." },
+  { q: "A company has years of PySpark feature jobs and wants to move them quickly. What should they use?", opts: ["Rewrite everything in BigQuery ML", "Run them in a notebook", "Dataproc or Serverless for Apache Spark", "Cloud Vision"], a: 2, why: "Managed Spark runs existing code with minimal changes; the stem names an existing investment." }
+];
+
+const samples = [];
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+</script>
+</body>
+</html>

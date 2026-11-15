@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serving and Scaling Models on Google Cloud</title>
+<style>
+  a { color: var(--blue); }
+  a:hover { color: var(--teal); }
+  :root { --bg:#1c1b29; --panel:#262537; --panel2:#2e2d42; --text:#ece9f5; --muted:#aeaac6;
+          --green:#b5e08f; --red:#f5aab4; --blue:#a7c8f9; --amber:#f8d3a4; --purple:#d4bdf5; --teal:#a6e7d9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; }
+  main { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:var(--green); margin-bottom:4px; }
+  h2 { border-bottom:2px solid var(--green); padding-bottom:6px; margin-top:52px; }
+  h3 { color:var(--blue); margin-top:28px; }
+  .subtitle { color:var(--muted); margin-top:0; }
+  .card { background:var(--panel); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  .analogy,.key,.warn,.mn,.note,.pass { background:var(--panel2); padding:12px 18px; border-radius:6px; margin:14px 0; }
+  .analogy { border-left:4px solid var(--amber); } .analogy::before { content:"Analogy: "; font-weight:700; color:var(--amber); }
+  .key { border-left:4px solid var(--green); } .key::before { content:"Key idea: "; font-weight:700; color:var(--green); }
+  .warn { border-left:4px solid var(--red); } .warn::before { content:"Exam trap: "; font-weight:700; color:var(--red); }
+  .mn { border-left:4px solid var(--purple); } .mn::before { content:"Memory hook: "; font-weight:700; color:var(--purple); }
+  .note { border-left:4px solid var(--muted); } .note::before { content:"Note: "; font-weight:700; color:var(--muted); }
+  .pass { border-left:4px solid var(--teal); } .pass::before { content:"Pass criteria: "; font-weight:700; color:var(--teal); }
+  code { background:#38364f; padding:1px 6px; border-radius:4px; font-size:0.92em; }
+  pre { background:#17161f; padding:14px; border-radius:8px; overflow-x:auto; font-size:0.86em; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #3e3c58; vertical-align:top; }
+  th { color:var(--green); }
+  nav.toc a { color:var(--blue); text-decoration:none; }
+  nav.toc li { margin:3px 0; }
+  details.scn { background:var(--panel); border-radius:10px; margin:12px 0; border:1px solid #3e3c58; }
+  details.scn summary { cursor:pointer; padding:14px 18px; font-weight:700; }
+  details.scn .body { padding:0 18px 16px; }
+  .lbl { display:inline-block; font-size:0.78em; font-weight:700; padding:1px 8px; border-radius:4px; margin-right:6px; color:#1c1b29; }
+  .l-sym { background:var(--amber); } .l-cause { background:var(--red); } .l-fix { background:var(--green); } .l-diag { background:var(--blue); }
+  .outbox { background:#17161f; border-radius:8px; padding:14px; min-height:60px; }
+  .tool { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:720px) { .tool { grid-template-columns:1fr; } }
+  .tool select, .tool input, #search { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #3e3c58; background:var(--panel2); color:var(--text); font-size:1em; }
+  .mono { font-family:ui-monospace,Menlo,monospace; white-space:pre-wrap; }
+  .flash { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .fc { background:var(--panel); border:1px solid #3e3c58; border-radius:10px; padding:16px; min-height:110px; cursor:pointer; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .fc.flip { background:#2b3629; border-color:var(--green); }
+  .quiz .q { background:var(--panel); padding:16px 20px; border-radius:10px; margin:16px 0; }
+  .quiz label { display:block; padding:6px 10px; margin:4px 0; border-radius:6px; cursor:pointer; }
+  .quiz label:hover { background:var(--panel2); }
+  .quiz .fb { display:none; margin-top:10px; padding:10px 14px; border-radius:6px; background:var(--panel2); }
+  button { background:var(--green); color:#1c1b29; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; margin-top:8px; }
+  button.alt { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin-right:6px; }
+  .qscore { background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; font-weight:700; }
+  #score { position:sticky; top:0; background:var(--panel); border:1px solid var(--green); border-radius:8px; padding:8px 14px; margin:12px 0; z-index:5; font-weight:700; }
+  .term { background:#100f17; border:1px solid #3e3c58; border-bottom:0; border-radius:8px 8px 0 0; padding:12px 14px; height:460px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace; font-size:0.84em; white-space:pre-wrap; word-break:break-word; cursor:text; }
+  .term .err { color:var(--red); } .term .hint { color:var(--amber); } .term .ok { color:var(--green); } .term .dim, .dim { color:var(--muted); } .term .cmd { color:var(--blue); }
+  .tline { display:flex; gap:6px; align-items:center; background:#100f17; border:1px solid #3e3c58; border-top:1px dashed #3e3c58; border-radius:0 0 8px 8px; padding:8px 14px; font-family:ui-monospace,Menlo,monospace; font-size:0.86em; }
+  .tline span { color:var(--green); white-space:pre; }
+  .tline input { flex:1; background:transparent; border:0; outline:none; color:var(--text); font:inherit; }
+  .missions { margin:8px 0; padding-left:22px; }
+  .missions li { margin:3px 0; color:var(--muted); }
+  .missions li.done { color:var(--green); }
+  .missions li.done::marker { content:"✓  "; }
+  .mistake { color:var(--red); margin:4px 0; }
+  .pick { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .pick button { background:var(--panel2); color:var(--text); border:1px solid #3e3c58; margin:0; font-weight:600; }
+  .pick button.on { background:var(--green); color:#1c1b29; }
+  .warn-inline { color:var(--red); }
+  .topnav { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:0.92em; margin:0 0 8px; }
+  .pager { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:40px; padding-top:16px; border-top:1px solid #3e3c58; }
+</style>
+</head>
+<body>
+<main>
+<div class="topnav"><a href="index.html">← All Google Cloud AI guides</a><span class="dim">Section 4 · 4.1, 4.2</span></div>
+<h1>Serving and scaling models</h1>
+<p class="subtitle">Section 4: online vs batch inference, where to serve (Agent Platform endpoints, Model Garden, Cloud Run, GKE), prebuilt and custom containers, custom prediction routines, Model Registry, canary and A/B rollouts, public, dedicated and private endpoints, autoscaling, serving hardware and model optimization. Includes a serving capacity calculator and a rollout lab.</p>
+
+<nav class="toc card">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#serving">Serving models</a></li>
+    <li><a href="#scaling">Scaling online serving</a></li>
+    <li><a href="#llmserving">Serving open LLMs efficiently</a></li>
+    <li><a href="#scalecalc">Serving capacity calculator</a></li>
+    <li><a href="#lab">Lab: endpoint, canary rollout and rollback</a></li>
+    <li><a href="#chooser">"Which serving option?" chooser</a></li>
+    <li><a href="#samples">Sample outputs</a></li>
+    <li><a href="#scenarios">Scenarios</a></li>
+    <li><a href="#cheat">Searchable reference</a></li>
+    <li><a href="#flash">Flashcards (click to flip)</a></li>
+    <li><a href="#traps">Common gotchas in one list</a></li>
+    <li><a href="#quiz">Practice quiz (19 questions)</a></li>
+  </ol>
+</nav>
+
+<h2 id="serving">1. Serving models</h2>
+<h3>Online vs batch</h3>
+<table>
+  <tr><th></th><th>Online inference</th><th>Batch inference</th></tr>
+  <tr><td>Latency</td><td>Milliseconds per request</td><td>Minutes to hours per job</td></tr>
+  <tr><td>Infrastructure</td><td>An endpoint with replicas running all the time (minimum one replica on Agent Platform endpoints)</td><td>Resources only while the job runs; no endpoint needed</td></tr>
+  <tr><td>Input / output</td><td>JSON request, JSON response</td><td>BigQuery table or Cloud Storage files (JSONL, CSV, TFRecord) in; BigQuery or Cloud Storage out</td></tr>
+  <tr><td>Use</td><td>Checkout fraud scoring, chat, personalization per page view</td><td>Nightly churn scores, weekly forecasts, bulk document processing</td></tr>
+</table>
+<h3>Where to serve</h3>
+<table>
+  <tr><th>Target</th><th>Choose when</th></tr>
+  <tr><td><strong>Agent Platform endpoints</strong></td><td>Managed autoscaling, traffic splitting, Model Monitoring, explanations, request-response logging; least ops</td></tr>
+  <tr><td>Model Garden one-click deploy</td><td>Open models (Gemma, Llama) on optimized serving containers (for example vLLM) with chosen GPUs or TPUs</td></tr>
+  <tr><td><strong>Cloud Run</strong></td><td>Lightweight models or pre/post-processing services, scale to zero, GPUs available for small models</td></tr>
+  <tr><td><strong>GKE</strong></td><td>Existing Kubernetes platform, custom serving stacks, many models sharing hardware, GKE Inference Gateway</td></tr>
+  <tr><td>BigQuery ML</td><td>Batch scoring inside the warehouse</td></tr>
+</table>
+<h3>Containers</h3>
+<p><strong>Prebuilt prediction containers</strong> serve TensorFlow SavedModel, PyTorch, scikit-learn and XGBoost artifacts from Cloud Storage with no server code. A <strong>custom container</strong> is needed for other frameworks or custom logic. It must:</p>
+<ul>
+  <li>Run an HTTP server on the port in <code>AIP_HTTP_PORT</code> (default 8080).</li>
+  <li>Answer health checks on <code>AIP_HEALTH_ROUTE</code> and predictions on <code>AIP_PREDICT_ROUTE</code>.</li>
+  <li>Accept <code>{"instances": [...]}</code> and return <code>{"predictions": [...]}</code>.</li>
+  <li>Load model files from <code>AIP_STORAGE_URI</code>, and live in Artifact Registry.</li>
+</ul>
+<p><strong>Custom prediction routines (CPR)</strong> let you add preprocessing and postprocessing in Python (a <code>Predictor</code> class with <code>preprocess</code>, <code>predict</code>, <code>postprocess</code>) and build the container for you, so you don't write a web server.</p>
+<h3>Model Registry and versions</h3>
+<ul>
+  <li>Each upload is a <strong>model version</strong> under one model; <strong>aliases</strong> (<code>default</code>, <code>champion</code>, <code>challenger</code>) point to versions.</li>
+  <li>Register models from custom training, AutoML and BigQuery ML (<code>model_registry='VERTEX_AI'</code>); attach evaluations; deploy any version to an endpoint.</li>
+</ul>
+<h3>Rollout strategies</h3>
+<table>
+  <tr><th>Strategy</th><th>How on an endpoint</th><th>Use</th></tr>
+  <tr><td><strong>Canary</strong></td><td>Deploy the new model to the same endpoint with a small traffic split (for example 5–10%), watch metrics, then increase</td><td>Reduce risk of a bad release</td></tr>
+  <tr><td><strong>A/B test</strong></td><td>Split traffic between versions and compare a business metric with enough samples for significance</td><td>Decide which model performs better for users</td></tr>
+  <tr><td>Shadow (mirroring)</td><td>Send copies of requests to the new model without returning its answers</td><td>Compare outputs with zero user impact (implemented in your app or gateway)</td></tr>
+  <tr><td>Blue/green</td><td>Deploy to a new endpoint, switch clients over, keep the old one for rollback</td><td>Clean cutover</td></tr>
+  <tr><td>Rollback</td><td>Set traffic back to 100% on the previous deployed model</td><td>Fast recovery: keep the old model deployed during the canary</td></tr>
+</table>
+<pre><code># Deploy version 2 alongside version 1, sending it 10% of traffic
+gcloud ai endpoints deploy-model ENDPOINT_ID --region=us-central1 \
+  --model=MODEL_ID@2 --display-name=churn-v2 --machine-type=n1-standard-4 \
+  --min-replica-count=1 --max-replica-count=5 \
+  --traffic-split=0=10,DEPLOYED_MODEL_ID_V1=90     # 0 means "the model being deployed"</code></pre>
+<div class="warn">Training-serving skew often comes from <strong>preprocessing done differently at serving</strong> (in app code) than in training (in a notebook). Put preprocessing in the model graph, the BQML <code>TRANSFORM</code> clause, TensorFlow Transform, a CPR predictor, or Feature Store features so both paths share one implementation.</div>
+
+<!-- ============================================================ -->
+<h2 id="scaling">2. Scaling online serving</h2>
+<h3>Endpoints and networking</h3>
+<table>
+  <tr><th>Endpoint type</th><th>Use</th></tr>
+  <tr><td>Public (shared) endpoint</td><td>Default; reachable over the internet with IAM authentication</td></tr>
+  <tr><td><strong>Dedicated public endpoint</strong></td><td>Isolated, lower-latency serving, larger payloads and longer timeouts; recommended for production and gen AI models</td></tr>
+  <tr><td><strong>Private endpoint with Private Service Connect</strong> (or VPC peering, older)</td><td>Traffic stays on private IPs inside your VPC; meets "no public internet" requirements; lowest network latency from your services</td></tr>
+</table>
+<h3>Autoscaling and hardware</h3>
+<ul>
+  <li><strong><code>min_replica_count</code></strong> keeps capacity warm (latency on spikes, but you pay for it). <strong><code>max_replica_count</code></strong> caps cost.</li>
+  <li>Autoscaling follows CPU or accelerator duty cycle against a target (default about 60%), or request metrics on newer options. Scale-out takes minutes, so set the minimum for your baseline and expected surges.</li>
+  <li>Some endpoint configurations can <strong>scale to zero</strong>; check current support. Otherwise the minimum replica bills continuously.</li>
+  <li>GPUs for large deep models and LLMs; CPUs for trees and small models (cheaper per prediction at low volume); TPUs for high-throughput LLM serving.</li>
+  <li>Several models can share one machine with <strong>deployment resource pools</strong> (co-hosting) to cut cost for low-traffic models.</li>
+</ul>
+<h3>Making models faster and cheaper to serve</h3>
+<table>
+  <tr><th>Technique</th><th>Effect</th></tr>
+  <tr><td><strong>Quantization</strong> (float16, int8, int4)</td><td>Smaller, faster models; small accuracy cost to verify</td></tr>
+  <tr><td><strong>Distillation</strong></td><td>A small student model mimics a large teacher</td></tr>
+  <tr><td>Pruning, smaller architectures</td><td>Fewer operations</td></tr>
+  <tr><td>Optimized runtimes (TensorRT, vLLM, optimized TensorFlow runtime)</td><td>Better kernels and batching on the same hardware</td></tr>
+  <tr><td>Server-side batching</td><td>Higher throughput for a little latency</td></tr>
+  <tr><td>Caching predictions or features</td><td>Skip repeated work; precompute embeddings</td></tr>
+</table>
+<h3>Serving features</h3>
+<p>Online models need the same features they were trained with, fresh enough, in milliseconds. Fetch them from <strong>Feature Store online serving</strong> by entity ID (keyed on user, product, device), or compute request-time features in the request itself. Streaming features flow through Pub/Sub and Dataflow into the store.</p>
+<div class="warn">Joining BigQuery at request time for features is too slow for low-latency serving. Precompute into the online store.</div>
+
+<!-- ============================================================ -->
+<h2 id="llmserving">3. Serving open LLMs efficiently</h2>
+<table>
+  <tr><th>Technique</th><th>Effect</th></tr>
+  <tr><td>Optimized runtimes (vLLM, TensorRT-LLM, JetStream on TPU)</td><td>Much higher throughput per accelerator than naive serving</td></tr>
+  <tr><td>Continuous batching</td><td>Adds new requests to in-flight batches; keeps accelerators busy</td></tr>
+  <tr><td>Paged / managed KV cache</td><td>More concurrent sequences in the same memory</td></tr>
+  <tr><td>Quantization (int8, int4, FP8)</td><td>Smaller memory, faster; small quality loss to evaluate</td></tr>
+  <tr><td>Tensor parallelism</td><td>Splits one model across several GPUs when it doesn't fit on one</td></tr>
+  <tr><td>Speculative decoding</td><td>A small draft model proposes tokens the large model verifies; lower latency</td></tr>
+  <tr><td>Streaming</td><td>Better time to first token for chat</td></tr>
+  <tr><td>Smaller or distilled model</td><td>Often the biggest saving if quality holds</td></tr>
+</table>
+<div class="key">Two latency numbers matter for LLMs: <strong>time to first token</strong> (prompt processing, queueing) and <strong>time per output token</strong> (decoding). Long prompts hurt the first; long answers hurt the second. If no custom weights or VPC control are needed, Gemini or a MaaS model avoids running this stack at all.</div>
+
+<!-- ============================================================ -->
+<h2 id="scalecalc">4. Serving capacity calculator</h2>
+<p>Estimate replicas for an online endpoint from peak traffic and what one replica can handle at your latency target (measure that with a load test). The calculator applies the autoscaling target so replicas aren't planned at 100%.</p>
+<div class="card">
+  <div class="tool">
+    <label>Peak requests per second<br><input id="sQ" type="number" min="0" value="400"></label>
+    <label>Baseline (off-peak) requests per second<br><input id="sB" type="number" min="0" value="60"></label>
+    <label>Requests per second one replica handles at your latency target<br><input id="sR" type="number" min="1" value="50"></label>
+    <label>Autoscaling target utilization (%)<br><input id="sT" type="number" min="10" max="100" value="60"></label>
+    <label>Cost per replica per hour (any currency)<br><input id="sC" type="number" min="0" step="0.01" value="1.20"></label>
+    <label>Peak hours per day<br><input id="sH" type="number" min="0" max="24" value="6"></label>
+  </div>
+  <div class="outbox" id="sOut"></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="lab">5. Lab: endpoint, canary rollout and rollback</h2>
+<ol>
+  <li>Using version 1 from the <a href="training-tuning-hardware.html#lab">training lab</a> (or any registered model), create an endpoint and deploy with min 1, max 2 replicas.</li>
+  <li>Load-test with increasing request rates; note the rate one replica handles at your latency target and use it in the <a href="#scalecalc">capacity calculator</a>.</li>
+  <li>Train version 2, deploy it to the same endpoint with a 10% traffic split, and send 200 requests. Check the split in the endpoint metrics.</li>
+  <li>Roll back: set version 1 to 100%, then undeploy version 2.</li>
+  <li>Run batch inference for the same model over a BigQuery table and compare cost and effort with the endpoint.</li>
+</ol>
+<p><strong>Clean up:</strong> undeploy all models and delete the endpoint (<code>gcloud ai endpoints undeploy-model</code>, <code>gcloud ai endpoints delete</code>). Endpoints bill for every hour a replica is deployed, even with no traffic.</p>
+
+<!-- ============================================================ -->
+<h2 id="chooser">6. "Which serving option?" chooser</h2>
+<p>Pick an item to see what it means, why, and the tempting wrong choice.</p>
+<div class="pick" id="pick"></div>
+<div class="outbox" id="pickOut">Pick one above.</div>
+
+<!-- ============================================================ -->
+<h2 id="samples">7. Sample outputs</h2>
+<p>What the tools return. Expand an item to see a typical result and what to read in it.</p>
+<div class="note">Illustrative output, not captured from a real project. IDs, numbers and some field names are invented or simplified, and formats change between releases. Learn the shape and the fields called out under each one.</div>
+<div class="smp-bar"><input id="smpQ" type="search" placeholder="Filter commands and output" aria-label="Filter sample outputs"><button id="smpAll" type="button">Expand all</button><span id="smpN" class="smp-n"></span></div>
+<div id="smpList">
+<details class="smp"><summary><code>gcloud ai endpoints describe ENDPOINT_ID --region=us-central1</code><span class="smp-what">Endpoint with a canary traffic split</span></summary><pre><code>deployedModels:
+- id: '1111111111111111111'
+  displayName: churn-v1
+  model: projects/PROJECT_NUMBER/locations/us-central1/models/MODEL_ID@1
+  dedicatedResources:
+    machineSpec: {machineType: n1-standard-4}
+    minReplicaCount: 1
+    maxReplicaCount: 5
+- id: '2222222222222222222'
+  displayName: churn-v2
+  model: projects/PROJECT_NUMBER/locations/us-central1/models/MODEL_ID@2
+  dedicatedResources:
+    machineSpec: {machineType: n1-standard-4}
+    minReplicaCount: 1
+    maxReplicaCount: 5
+trafficSplit:
+  '1111111111111111111': 90
+  '2222222222222222222': 10</code></pre><p class="smp-read"><strong>What to look at:</strong> Two versions of one registered model share the endpoint, with 10% of traffic on v2: a canary. Rollback is a traffic-split change, with no redeploy. Each deployed model has its own minimum replica, so the canary costs a full replica even at 10% traffic.</p></details>
+</div>
+<style>
+.smp-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.smp-bar input { flex:1; min-width:220px; padding:8px 10px; border-radius:6px; border:1px solid var(--line, #8884); background:var(--panel, transparent); color:inherit; font:inherit; }
+.smp-bar .smp-n { color:var(--muted, #888); font-size:.9em; }
+details.smp { border:1px solid var(--line, #8884); border-radius:8px; margin:8px 0; background:var(--panel, transparent); }
+details.smp > summary { cursor:pointer; padding:10px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; list-style-position:inside; }
+details.smp > summary code { font-weight:600; }
+details.smp .smp-what { color:var(--muted, #888); font-size:.92em; }
+details.smp pre { margin:0 14px 10px; max-height:520px; overflow:auto; }
+details.smp .smp-read { margin:0 14px 12px; }
+</style>
+<script>
+(() => {
+  const q = document.getElementById("smpQ"), all = document.getElementById("smpAll"), n = document.getElementById("smpN");
+  const items = [...document.querySelectorAll("#smpList details.smp")];
+  const count = () => { const v = items.filter(d => !d.hidden).length; n.textContent = v + " of " + items.length + " commands"; };
+  q.addEventListener("input", () => {
+    const t = q.value.trim().toLowerCase();
+    for (const d of items) d.hidden = t !== "" && !d.textContent.toLowerCase().includes(t);
+    count();
+  });
+  all.addEventListener("click", () => {
+    const open = all.textContent === "Expand all";
+    for (const d of items) if (!d.hidden) d.open = open;
+    all.textContent = open ? "Collapse all" : "Expand all";
+  });
+  count();
+})();
+</script>
+
+<!-- ============================================================ -->
+<h2 id="scenarios">8. Scenarios</h2>
+<p>Exam-style situations: how to diagnose each one, the likely cause and the fix.</p>
+<div id="scnRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="cheat">9. Searchable reference</h2>
+<input id="search" type="text" placeholder="Filter, e.g. batch, traffic split, PSC, min replicas, CPR…">
+<table id="cheatTable"><thead><tr><th>Item</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+
+<!-- ============================================================ -->
+<h2 id="flash">10. Flashcards (click to flip)</h2>
+<div class="flash" id="flashRoot"></div>
+
+<!-- ============================================================ -->
+<h2 id="traps">11. Common gotchas in one list</h2>
+<div class="key"><ol>
+<li><strong>Batch when results can wait</strong>: endpoints bill every replica hour.</li>
+<li><strong>Canary on one endpoint with a traffic split</strong>; roll back by moving traffic.</li>
+<li><strong>Shadow tests behaviour; A/B tests business impact.</strong></li>
+<li><strong>Custom containers must serve on AIP_HTTP_PORT with health and predict routes.</strong></li>
+<li><strong>CPR avoids writing a web server</strong> for custom pre- and post-processing.</li>
+<li><strong>Autoscaling lags sudden peaks</strong>: raise min replicas or pre-scale.</li>
+<li><strong>Private Service Connect for private prediction traffic.</strong></li>
+<li><strong>Quantize and use optimized runtimes</strong> before buying more GPUs.</li>
+<li><strong>Same preprocessing in batch and online paths</strong>, or predictions diverge.</li>
+<li><strong>Fetch online features from Feature Store</strong>, not BigQuery per request.</li>
+<li><strong>Time to first token and time per token</strong> are different problems.</li>
+</ol></div>
+
+<!-- ============================================================ -->
+<h2 id="quiz">12. Practice quiz (19 questions)</h2>
+<div id="score">Score: 0 / 0</div>
+<div class="quiz" id="quizRoot"></div>
+<button id="resetBtn">Reset quiz</button>
+<div class="pager"><a href="training-tuning-hardware.html">← Training, tuning and hardware</a><a href="pipelines-mlops.html">Next: Pipelines and MLOps →</a></div>
+
+</main>
+<script>
+const picks = [
+  ["Nightly scores for all 10 million customers", "Batch inference (or BigQuery ML ML.PREDICT)", "No always-on endpoint; output lands in BigQuery.", "Calling an online endpoint 10 million times"],
+  ["Test a new model on 5% of live traffic", "Deploy to the same endpoint with a 5% traffic split (canary)", "Gradual exposure and instant rollback.", "Replacing the deployed model in one step"],
+  ["Predictions must never cross the public internet", "Private endpoint with Private Service Connect", "Private IPs inside your VPC.", "A public endpoint with an API key"],
+  ["Run a new model on real traffic without affecting users", "Shadow deployment (mirror requests, discard responses)", "Compares behaviour safely.", "A 50% canary"],
+  ["Compare business outcome of two models", "A/B test with a traffic split and an online metric", "Measures real impact.", "Offline metrics only"],
+  ["Many small models with low traffic each", "Co-host on a deployment resource pool (or a multi-model server)", "Share nodes instead of one endpoint each.", "One dedicated GPU endpoint per model"],
+  ["Python pre- and post-processing around the model, no web server code", "Custom prediction routine (CPR)", "Generates the serving container for you.", "Writing a Flask server"],
+  ["Lowest-latency, large-payload Gemini-like serving of a deployed model", "Dedicated endpoint", "Isolated, higher limits and lower latency.", "A shared public endpoint"],
+  ["Open LLM on GPUs too slow", "Optimized runtime (vLLM) with continuous batching, quantization", "Higher throughput per GPU.", "More replicas only"],
+  ["App needs on-device predictions offline", "Edge model (TF Lite / LiteRT) after quantization", "Runs without connectivity.", "Online endpoint"],
+  ["Inputs known in advance, millisecond lookups needed", "Precompute in batch, serve from a low-latency store", "No model call per request.", "Online prediction per request"],
+  ["Spiky serverless model API with scale to zero", "Cloud Run (CPU or GPU) container", "Pay per use; scales to zero.", "Endpoint with min 3 replicas"]
+];
+
+const samples = [
+  ["gcloud ai endpoints describe ENDPOINT_ID --region=us-central1", "Endpoint with a canary traffic split", "deployedModels:\n- id: '1111111111111111111'\n  displayName: churn-v1\n  model: projects/PROJECT_NUMBER/locations/us-central1/models/MODEL_ID@1\n  dedicatedResources:\n    machineSpec: {machineType: n1-standard-4}\n    minReplicaCount: 1\n    maxReplicaCount: 5\n- id: '2222222222222222222'\n  displayName: churn-v2\n  model: projects/PROJECT_NUMBER/locations/us-central1/models/MODEL_ID@2\n  dedicatedResources:\n    machineSpec: {machineType: n1-standard-4}\n    minReplicaCount: 1\n    maxReplicaCount: 5\ntrafficSplit:\n  '1111111111111111111': 90\n  '2222222222222222222': 10", "Two versions of one registered model share the endpoint, with 10% of traffic on v2: a canary. Rollback is a traffic-split change, with no redeploy. Each deployed model has its own minimum replica, so the canary costs a full replica even at 10% traffic."]
+];
+
+const traps = [
+  "<strong>Batch when results can wait</strong>: endpoints bill every replica hour.",
+  "<strong>Canary on one endpoint with a traffic split</strong>; roll back by moving traffic.",
+  "<strong>Shadow tests behaviour; A/B tests business impact.</strong>",
+  "<strong>Custom containers must serve on AIP_HTTP_PORT with health and predict routes.</strong>",
+  "<strong>CPR avoids writing a web server</strong> for custom pre- and post-processing.",
+  "<strong>Autoscaling lags sudden peaks</strong>: raise min replicas or pre-scale.",
+  "<strong>Private Service Connect for private prediction traffic.</strong>",
+  "<strong>Quantize and use optimized runtimes</strong> before buying more GPUs.",
+  "<strong>Same preprocessing in batch and online paths</strong>, or predictions diverge.",
+  "<strong>Fetch online features from Feature Store</strong>, not BigQuery per request.",
+  "<strong>Time to first token and time per token</strong> are different problems."
+];
+
+const questions = [
+  { q: "You want to send 10% of live traffic to a new model version and roll back instantly if metrics drop. How do you do this on Agent Platform?", opts: ["Delete the old model and deploy the new one", "Deploy the new version to the same endpoint with a 10% traffic split, keeping the old version deployed", "Create a batch inference job", "Change the model's display name"], a: 1, why: "Traffic splitting on one endpoint enables a canary; rollback is a split change." },
+  { q: "An XGBoost model needs custom feature parsing before prediction and output formatting after it. You don't want to write and maintain a web server. What should you use?", opts: ["A prebuilt container with no changes", "BigQuery ML import", "A Cloud Storage trigger", "A custom prediction routine (Predictor with preprocess and postprocess)"], a: 3, why: "Custom prediction routines add Python pre/post-processing and build the serving container for you." },
+  { q: "Which requirement must a custom serving container meet on Agent Platform?", opts: ["Run an HTTP server on AIP_HTTP_PORT with health and predict routes", "Be written in Java", "Expose port 22 for SSH", "Use a TPU"], a: 0, why: "The container contract is an HTTP server on the provided port with health and predict routes using instances/predictions JSON." },
+  { q: "Security policy forbids prediction traffic from leaving private networks. What endpoint setup should you use?", opts: ["A public endpoint behind an API key", "A Cloud Storage signed URL", "A private endpoint with Private Service Connect", "A notebook kernel"], a: 2, why: "Private Service Connect exposes the endpoint on private IPs in your VPC." },
+  { q: "Latency spikes at 9:00 every morning when traffic quadruples, then recovers. What's the most direct fix?", opts: ["Lower max replicas", "Switch to batch inference", "Raise the minimum replica count (or pre-scale) for the morning peak", "Remove autoscaling"], a: 2, why: "Autoscaling lags sudden load; warm capacity handles predictable surges." },
+  { q: "An LLM served on GPUs is too slow and costly; a small quality loss is acceptable. Which technique fits first?", opts: ["Quantize the model (for example to int8) and use an optimized serving runtime", "Train it longer", "Increase the context length", "Disable batching"], a: 0, why: "Quantization and optimized runtimes cut memory and latency with small accuracy loss." },
+  { q: "A team wants to see how a new model behaves on real production requests without any user seeing its predictions. What deployment strategy fits?", opts: ["A 50% traffic split", "Replace the old model directly", "Batch inference on last year's data", "Shadow deployment: mirror requests to the new model and discard its responses"], a: 3, why: "Shadow mode compares behaviour with zero user impact." },
+  { q: "Twenty models each receive a few requests per minute, and each has a dedicated GPU endpoint. How can costs fall most?", opts: ["Add more replicas", "Co-host models on a shared deployment resource pool (and use CPUs where latency allows)", "Increase max replicas", "Move to TPUs"], a: 1, why: "Shared nodes remove idle per-model replicas." },
+  { q: "A model API has very spiky traffic with long idle periods and must scale to zero. What fits?", opts: ["Cloud Run (with GPUs if needed)", "An Agent Platform endpoint with min replicas 2", "A Compute Engine VM always on", "A GKE cluster with fixed nodes"], a: 0, why: "Cloud Run scales to zero between bursts." },
+  { q: "An open LLM served with a basic Python server has low GPU utilization and poor throughput. What helps most?", opts: ["More CPU cores", "Lower max replicas", "An optimized runtime such as vLLM with continuous batching", "Turning off streaming"], a: 2, why: "Continuous batching and memory-efficient KV cache raise throughput." },
+  { q: "Chat users complain the response takes too long to start, though tokens then arrive quickly. What should you address?", opts: ["Time per output token only", "Disk throughput", "Training data size", "Time to first token: stream responses, shorten or cache long prompts"], a: 3, why: "Prompt processing and queueing dominate the first token." },
+  { q: "Predictions from a nightly batch job differ from the endpoint for the same inputs. What's the likely cause?", opts: ["Endpoints use a different random seed", "Different preprocessing code in the two paths", "Batch inference is always less accurate", "Replica count"], a: 1, why: "Shared, packaged preprocessing prevents divergence." },
+  { q: "A mobile app needs predictions without network connectivity. What deployment fits?", opts: ["An online endpoint", "Batch inference", "BigQuery ML", "An edge model (TF Lite / LiteRT), quantized for the device"], a: 3, why: "Edge models run on the device." },
+  { q: "A model must answer within 50 ms p99, and each prediction needs 30 customer features. What's the best feature source?", opts: ["Feature Store online serving", "A BigQuery query per request", "Reading CSV files from Cloud Storage", "Recomputing features from raw logs"], a: 0, why: "Online stores serve features by key in milliseconds." },
+  { q: "Which deployment strategy measures whether a new recommender increases revenue?", opts: ["Shadow deployment", "An A/B test with a traffic split and an online business metric", "Offline NDCG only", "Batch inference"], a: 1, why: "A/B tests measure real user outcomes." },
+  { q: "A custom serving container works locally but the Agent Platform endpoint marks it unhealthy. What should you check first?", opts: ["The training dataset", "The model's learning rate", "That the server listens on AIP_HTTP_PORT and answers the AIP_HEALTH_ROUTE", "BigQuery slot usage"], a: 2, why: "The platform probes the health route on the port it provides." },
+  { q: "An open 70B model doesn't fit on one GPU for serving. Which options fit? (choose the best single answer)", opts: ["Quantize it and/or use tensor parallelism across GPUs in an optimized runtime", "Data parallelism with one full copy per GPU", "Increase batch size", "Serve it on CPUs"], a: 0, why: "Shrinking weights or splitting the model across devices is required when one copy doesn't fit." },
+  { q: "A canary at 10% shows higher error rates. What's the fastest safe action?", opts: ["Delete the endpoint", "Retrain immediately and redeploy", "Raise max replicas", "Shift 100% of traffic back to the previous version, then undeploy the canary"], a: 3, why: "Traffic splits allow instant rollback without redeploying." },
+  { q: "Inputs for tomorrow's predictions are all known tonight, and the app needs millisecond responses. What's simplest?", opts: ["Online endpoint with many replicas", "Edge deployment", "Precompute predictions in batch and serve them from a low-latency key-value store", "Retrain per request"], a: 2, why: "Precomputed lookups avoid serving the model online." }
+];
+
+const scenarios = [
+  {"t": "Endpoint bill high though traffic is tiny", "diag": "Check deployed models, min replicas and machine types on each endpoint.", "cause": "Always-on minimum replicas (often a forgotten canary or test deployment) on large machines.", "fix": "Undeploy unused models, right-size machines, co-host with resource pools, or use batch inference."},
+  {"t": "Latency spikes at the start of daily traffic peaks", "diag": "Compare replica count over time with request rate; check scale-out delay.", "cause": "Autoscaling reacts after load arrives and new replicas take minutes to start.", "fix": "Raise min replicas for the baseline, lower the target utilization, or pre-scale before known peaks."},
+  {"t": "A new model version caused errors for 10% of users", "diag": "Check endpoint traffic split and per-version error rates.", "cause": "Canary version is faulty.", "fix": "Shift 100% back to the previous version, undeploy the canary, investigate offline."},
+  {"t": "Twenty low-traffic models each have their own GPU endpoint", "diag": "Sum idle replica hours.", "cause": "One dedicated deployment per model.", "fix": "Co-host models on a shared deployment resource pool, use CPUs where possible, or batch."},
+  {"t": "Custom container deploys but the endpoint reports unhealthy", "diag": "Check the container's port and health route.", "cause": "Server not listening on AIP_HTTP_PORT or health route missing.", "fix": "Serve on AIP_HTTP_PORT with AIP_HEALTH_ROUTE and AIP_PREDICT_ROUTE."},
+  {"t": "LLM chat feels slow before any text appears", "diag": "Measure time to first token vs time per token.", "cause": "Long prompts and no streaming.", "fix": "Stream responses, shorten or cache prompts, optimized runtime."},
+  {"t": "Predictions differ between batch scoring and the endpoint", "diag": "Compare preprocessing code paths.", "cause": "Different preprocessing in the two paths.", "fix": "Package preprocessing with the model (CPR, TRANSFORM, tf.Transform) and use it in both."},
+  {"t": "Online feature lookups add 80 ms to each prediction", "diag": "Trace the request path.", "cause": "Features computed or fetched from BigQuery per request.", "fix": "Serve features from Feature Store online (optimized or Bigtable serving)."},
+  {"t": "Model must serve 1,000 requests/s with a 50 ms p99", "diag": "Load test one replica; compute replicas at target utilization.", "cause": "Capacity never sized.", "fix": "Size with the calculator, set min/max replicas, choose hardware, warm up before peaks."}
+];
+
+const cheat = [
+  ["Online inference", "Low-latency requests to an always-on endpoint"],
+  ["Batch inference", "Asynchronous scoring of files or tables; no endpoint"],
+  ["Prebuilt prediction container", "Serve TF, PyTorch, sklearn, XGBoost without server code"],
+  ["Custom container (AIP_HTTP_PORT, AIP_PREDICT_ROUTE, AIP_HEALTH_ROUTE)", "Contract a custom serving image must meet"],
+  ["Custom prediction routine (CPR)", "Python pre/post-processing with a generated container"],
+  ["--traffic-split", "Divide endpoint traffic across deployed models"],
+  ["Canary", "Small share of traffic to a new version, then increase"],
+  ["A/B test", "Split traffic and compare a business metric"],
+  ["Shadow deployment", "Mirror requests to a new model without serving its answers"],
+  ["Private Service Connect endpoint", "Private, in-VPC model endpoint"],
+  ["Dedicated endpoint", "Isolated, production-grade public endpoint"],
+  ["min / max replica count", "Warm capacity vs cost cap for autoscaling"],
+  ["Deployment resource pool", "Co-host several models on shared nodes"],
+  ["Quantization", "Lower-precision weights: smaller, faster"],
+  ["Cloud Run with GPUs", "Serverless containers that scale to zero"],
+  ["GKE serving", "Kubernetes control, multi-model serving, custom scheduling"],
+  ["vLLM / TensorRT-LLM / JetStream", "Optimized LLM serving runtimes"],
+  ["Continuous batching", "Join new requests to running batches"],
+  ["KV cache", "Stored attention keys/values per sequence"],
+  ["Speculative decoding", "Draft model proposes, large model verifies"],
+  ["Time to first token", "Latency before streaming starts"],
+  ["Tensor parallelism", "Split one model's layers across devices"],
+  ["Edge / LiteRT", "On-device inference"],
+  ["Precompute + lookup", "Batch predictions served from a key-value store"],
+  ["Model co-hosting", "Several models share a deployment resource pool"]
+];
+
+const cards = [
+  ["No endpoint, score a table nightly", "Batch inference / ML.PREDICT"],
+  ["Custom serving container must…", "Serve HTTP on AIP_HTTP_PORT with health and predict routes"],
+  ["Python pre/post-processing, no web server", "Custom prediction routine"],
+  ["Canary on Agent Platform", "Traffic split on the same endpoint"],
+  ["No public internet for predictions", "Private Service Connect endpoint"],
+  ["Nightly scores for everyone", "Batch inference"],
+  ["10% to a new version", "Traffic split on one endpoint (canary)"],
+  ["Mirror traffic, ignore responses", "Shadow deployment"],
+  ["Spiky, scale to zero", "Cloud Run"],
+  ["Morning latency spikes", "Raise min replicas or pre-scale"],
+  ["Custom container ports and routes", "AIP_HTTP_PORT, AIP_HEALTH_ROUTE, AIP_PREDICT_ROUTE"],
+  ["Many low-traffic models", "Co-host on a resource pool"],
+  ["Slow first token", "Stream, shorten or cache prompts"],
+  ["LLM throughput per GPU", "vLLM with continuous batching"]
+];
+
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = id => document.getElementById(id);
+const scnRoot = $("scnRoot");
+scenarios.forEach(s => { const d = document.createElement("details"); d.className = "scn";
+  d.innerHTML = "<summary>" + esc(s.t) + "</summary><div class=\"body\">" +
+    "<p><span class=\"lbl l-diag\">DIAGNOSE</span>" + esc(s.diag) + "</p>" +
+    "<p><span class=\"lbl l-cause\">CAUSE</span>" + esc(s.cause) + "</p>" +
+    "<p><span class=\"lbl l-fix\">FIX</span>" + esc(s.fix) + "</p></div>";
+  scnRoot.appendChild(d); });
+const tbody = document.querySelector("#cheatTable tbody");
+function drawCheat(f) { f = (f || "").toLowerCase();
+  tbody.innerHTML = cheat.filter(r => !f || r.join(" ").toLowerCase().includes(f))
+    .map(([c, d]) => "<tr><td><code>" + esc(c) + "</code></td><td>" + esc(d) + "</td></tr>").join(""); }
+$("search").addEventListener("input", e => drawCheat(e.target.value));
+drawCheat();
+const fl = $("flashRoot");
+cards.forEach(([q, a]) => { const d = document.createElement("div"); d.className = "fc"; d.textContent = q;
+  d.onclick = () => { const f = d.classList.toggle("flip"); d.textContent = f ? a : q; }; fl.appendChild(d); });
+function makeQuiz(root, scoreEl, resetBtn, qs, pre) { const state = {};
+function render() { root.innerHTML = "";
+  qs.forEach((it, i) => { const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = "<p><strong>Q" + (i + 1) + ". " + esc(it.q) + "</strong></p>" + it.opts.map((o, j) => "<label><input type=\"radio\" name=\"" + pre + i + "\" value=\"" + j + "\"> " + esc(o) + "</label>").join("") +
+      "<button data-i=\"" + i + "\">Check</button><div class=\"fb\" id=\"" + pre + "fb" + i + "\"></div>"; root.appendChild(d); });
+  upd(); }
+function upd() { const n = Object.keys(state).length, c = Object.values(state).filter(Boolean).length; scoreEl.textContent = "Score: " + c + " / " + n + " answered (of " + qs.length + ")"; }
+root.addEventListener("click", e => { if (e.target.tagName !== "BUTTON") return;
+  const i = +e.target.dataset.i, sel = root.querySelector("input[name=\"" + pre + i + "\"]:checked"), fb = $(pre + "fb" + i);
+  fb.style.display = "block";
+  if (!sel) { fb.style.color = "#f8d3a4"; fb.textContent = "Pick an answer first."; return; }
+  const ok = +sel.value === qs[i].a; if (!(i in state)) state[i] = ok;
+  fb.style.color = ok ? "#b5e08f" : "#f5aab4"; fb.textContent = (ok ? "Correct. " : "Not quite. ") + qs[i].why; upd(); });
+resetBtn.onclick = () => { for (const k in state) delete state[k]; render(); };
+render(); }
+makeQuiz($("quizRoot"), $("score"), $("resetBtn"), questions, "q");
+const pk = $("pick"), po = $("pickOut");
+if (pk) picks.forEach(([q, t, w, n]) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = q;
+  b.onclick = () => { [...pk.children].forEach(x => x.classList.remove("on")); b.classList.add("on");
+    po.innerHTML = "<p><span class=\"lbl l-fix\">MEANS</span>" + esc(t) + "</p><p><span class=\"lbl l-diag\">WHY</span>" + esc(w) + "</p><p><span class=\"lbl l-cause\">NOT</span>" + esc(n) + "</p>"; };
+  pk.appendChild(b);
+});
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "n/a";
+function wire(list) { list.forEach(([ids, f]) => { ids.forEach(id => { $(id).addEventListener("input", f); $(id).addEventListener("change", f); }); f(); }); }
+function scale() {
+  const Q = num("sQ", 0), B = num("sB", 0), R = Math.max(1, num("sR", 1)), T = Math.min(100, Math.max(10, num("sT", 60))) / 100;
+  const C = num("sC", 0), H = Math.min(24, num("sH", 0));
+  const perReplica = R * T, peak = Math.max(1, Math.ceil(Q / perReplica)), low = Math.max(1, Math.ceil(B / perReplica));
+  const daily = (peak * H + low * (24 - H)) * C, flat = peak * 24 * C;
+  const out = [];
+  out.push("<p>At a " + Math.round(T * 100) + "% target, plan each replica for about <strong>" + perReplica.toFixed(0) + " requests per second</strong>.</p>");
+  out.push("<p>Peak needs <strong>" + peak + " replica" + (peak === 1 ? "" : "s") + "</strong>; baseline needs <strong>" + low + "</strong>. Set <code>min_replica_count</code> to at least " + low + " (higher if traffic jumps faster than new replicas start) and <code>max_replica_count</code> to at least " + peak + " with headroom.</p>");
+  out.push("<p>Autoscaled cost: about <strong>" + daily.toFixed(2) + " per day</strong> (" + (daily * 30).toFixed(0) + " per 30 days) versus " + flat.toFixed(2) + " per day if you kept peak capacity all day.</p>");
+  if (Q === 0) out.push("<p class=\"dim\">No traffic: an endpoint still bills its minimum replica. Consider batch inference or undeploying.</p>");
+  $("sOut").innerHTML = out.join("");
+}
+
+wire([[["sQ", "sB", "sR", "sT", "sC", "sH"], scale]]);
+</script>
+</body>
+</html>
